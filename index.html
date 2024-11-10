@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Block Stacking Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Start Screen -->
+    <div id="startOverlay">
+        <p>Welcome to the Block Stacking Game</p>
+        <button id="startButton">Start Game 1</button>
+		<button id="startButton">Start Game 2 (to be implemented)</button>
+    </div>
+
+    <!-- Awaiting Screen -->
+    <div id="awaitingOverlay" style="visibility: hidden;">
+        <p>Loading, please wait...</p>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="gameOverOverlay" style="visibility: hidden;">
+        <p>Game Over!</p>
+        <button id="restartButton">Back to Home</button>
+    </div>
+
+    <script type="module" src="index.js"></script>
+</body>
+</html>
