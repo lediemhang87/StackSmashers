@@ -5,7 +5,7 @@ const startButton = document.getElementById('startButton');
 const restartButton = document.getElementById('restartButton');
 
 // Start the game when clicking the Start button
-startButton.addEventListener('click', async () => {
+startButton1.addEventListener('click', async () => {
     startOverlay.style.display = 'none';
     // Show loading screen
     awaitingOverlay.style.visibility = 'visible'; 
@@ -15,6 +15,18 @@ startButton.addEventListener('click', async () => {
     // Hide loading screen and start the game
     awaitingOverlay.style.visibility = 'hidden';
 });
+
+startButton2.addEventListener('click', async () => {
+    startOverlay.style.display = 'none';
+    // Show loading screen
+    awaitingOverlay.style.visibility = 'visible'; 
+
+    await import('./game2.js');
+
+    // Hide loading screen and start the game
+    awaitingOverlay.style.visibility = 'hidden';
+});
+
 
 // Restart the game when clicking the Restart button
 restartButton.addEventListener('click', async () => {

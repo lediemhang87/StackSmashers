@@ -15,7 +15,7 @@ document.body.appendChild(renderer.domElement);
 let stack = [];
 let blockSizeX = 10;
 let blockSizeY = 10;
-const blockHeight = 2;
+const blockHeight = 4;
 let currentPosition = 10;
 let movingDirection = 1;
 const speed = 0.2;
@@ -69,7 +69,7 @@ function update() {
         currentPosition += movingDirection * speed;
         currentBlock.position.x = currentPosition;
 
-        if (currentPosition > 15 || currentPosition < -15) {
+        if (currentPosition >= 25 || currentPosition <= -25) {
             // Reverse direction when reaching boundary
             movingDirection *= -1; 
         }
@@ -87,22 +87,9 @@ window.addEventListener('keydown', (event) => {
         
 
         if (Math.abs(overlap) <= blockSizeX) {
-            if (Math.abs(overlap) > 0){
-                blockSizeX -= Math.abs(overlap);
-                scene.remove(currentBlock); 
-                let geometry = new THREE.BoxGeometry(blockSizeX, blockHeight, blockSizeY);
-                let newBlock = new THREE.Mesh(geometry, currentBlock.material);
-
-                newBlock.position.set(
-                    previousBlock.position.x + (currentBlock.position.x - previousBlock.position.x)/2,
-                    currentBlock.position.y,
-                    currentBlock.position.z
-                );
-                scene.add(newBlock);
-                stack[stack.length - 1].position.x =  previousBlock.position.x + (currentBlock.position.x - previousBlock.position.x)/2
-            }
 
             addBlock(); // Add new block if aligned
+            checkBalance();   
             currentPosition = -15; // Reset position for next block
             
 
@@ -113,6 +100,34 @@ window.addEventListener('keydown', (event) => {
     }
 });
 
+function checkBalance() {
+    let totalX = 0;
+    let totalY = 0;
+    let totalZ = 0;
+
+    // Sum the x, y, z positions of all blocks
+    stack.forEach(block => {
+        totalX += block.position.x;
+        totalY += block.position.y;
+        totalZ += block.position.z;
+    });
+
+    // Calculate the center of mass
+    const centerX = totalX / stack.length;
+    const centerY = totalY / stack.length;
+    const centerZ = totalZ / stack.length;
+
+    // Set a threshold based on how far the center of mass can deviate from (0, 0, 0)
+    const threshold = blockSizeX / 2;  // Half the size of a block for some tolerance
+
+    // Check if the center of mass has shifted too far from the base
+    if (Math.abs(centerX) > threshold || Math.abs(centerZ) > threshold) {
+        console.log("Stack Unbalanced! Game Over!");
+        showGameOver();
+    }
+}
+
+
 animate();
 
 function animate() {
@@ -120,6 +135,8 @@ function animate() {
     update();
     renderer.render(scene, camera);
 }
+
+
 
 window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
