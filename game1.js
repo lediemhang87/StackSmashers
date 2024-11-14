@@ -31,6 +31,34 @@ scene.add(directionalLight);
 // Add the base block
 createBlock(0, 0, 0); 
 
+function createFallingBlock(x, y, z, fallBlockSizeX) {
+    const geometry = new THREE.BoxGeometry(fallBlockSizeX, blockHeight, blockSizeY);
+    const prevBlockColor = stack[stack.length - 1].material.color;
+
+    let material = new THREE.MeshPhongMaterial({
+        // Base color of the block
+        color: prevBlockColor,       
+        ambient: 0.0,
+        diffusivity: 0.5,
+        specularity: 1.0,
+        smoothness: 40.0
+    });
+    const block = new THREE.Mesh(geometry, material);
+    block.position.set(x, y, z);
+    scene.add(block);
+
+    const fallSpeed = 0.1; // May change to gravitational velocity function
+    
+    function animateFall() {
+        block.position.y -= fallSpeed;
+        if (block.position.y > (currentHeight - 15)) {  // Adjust this value based on where you want the block to disappear
+            requestAnimationFrame(animateFall);
+        } else {
+            scene.remove(block);
+        }
+    }
+    animateFall();
+}
 
 function createBlock(x, y, z) {
     const geometry = new THREE.BoxGeometry(blockSizeX, blockHeight, blockSizeY);
@@ -88,7 +116,10 @@ window.addEventListener('keydown', (event) => {
 
         if (Math.abs(overlap) <= blockSizeX) {
             if (Math.abs(overlap) > 0){
+                let fallBlockSizeX = blockSizeX; // Grab before chop-off value
                 blockSizeX -= Math.abs(overlap);
+                fallBlockSizeX -= blockSizeX; // New final fallBlockSizeX
+
                 scene.remove(currentBlock); 
                 let geometry = new THREE.BoxGeometry(blockSizeX, blockHeight, blockSizeY);
                 let newBlock = new THREE.Mesh(geometry, currentBlock.material);
@@ -100,6 +131,10 @@ window.addEventListener('keydown', (event) => {
                 );
                 scene.add(newBlock);
                 stack[stack.length - 1].position.x =  previousBlock.position.x + (currentBlock.position.x - previousBlock.position.x)/2
+                
+                // calculate X length of falling block, (can be pos or neg)
+                const fallingBlockX = overlap > 0 ? newBlock.position.x + blockSizeX/2 + Math.abs(overlap)/2 : newBlock.position.x - blockSizeX/2 - Math.abs(overlap)/2
+                createFallingBlock(fallingBlockX, newBlock.position.y, newBlock.position.z, fallBlockSizeX);
             }
 
             addBlock(); // Add new block if aligned
