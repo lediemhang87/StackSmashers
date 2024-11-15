@@ -14,12 +14,13 @@ document.body.appendChild(renderer.domElement);
 
 let stack = [];
 let blockSizeX = 10;
-let blockSizeY = 10;
+let blockSizeZ = 10;
 const blockHeight = 2;
 let currentPosition = 10;
 let movingDirection = 1;
 const speed = 0.2;
 let currentHeight = 0;
+let moveInX = false;
 
 const ambientLight = new THREE.AmbientLight(0x404040, 1);
 scene.add(ambientLight);
@@ -31,8 +32,10 @@ scene.add(directionalLight);
 // Add the base block
 createBlock(0, 0, 0); 
 
-function createFallingBlock(x, y, z, fallBlockSizeX) {
-    const geometry = new THREE.BoxGeometry(fallBlockSizeX, blockHeight, blockSizeY);
+
+
+function createFallingBlock(x, y, z, fallBlockSizeX, fallBlockSizeZ) {
+    const geometry = new THREE.BoxGeometry(fallBlockSizeX, blockHeight, fallBlockSizeZ);
     const prevBlockColor = stack[stack.length - 1].material.color;
 
     let material = new THREE.MeshPhongMaterial({
@@ -61,11 +64,11 @@ function createFallingBlock(x, y, z, fallBlockSizeX) {
 }
 
 function createBlock(x, y, z) {
-    const geometry = new THREE.BoxGeometry(blockSizeX, blockHeight, blockSizeY);
- 
+    const geometry = new THREE.BoxGeometry(blockSizeX, blockHeight, blockSizeZ);
+    let blockColor = new THREE.Color(Math.random(), Math.random(), Math.random());
     let material = new THREE.MeshPhongMaterial({
         // Base color of the block
-        color: new THREE.Color(Math.random(), Math.random(), Math.random()),       
+        color: blockColor,       
         ambient: 0.0,
         diffusivity: 0.5,
         specularity: 1.0,
@@ -74,6 +77,7 @@ function createBlock(x, y, z) {
     const block = new THREE.Mesh(geometry, material);
     block.position.set(x, y, z);
     scene.add(block);
+    scene.background = blockColor;
     stack.push(block);
 }
 
@@ -87,23 +91,30 @@ function addBlock() {
 
     currentHeight += blockHeight;
     camera.position.y = currentHeight + 10;
-    camera.lookAt(-20, currentHeight-20, -30);
-}
+    camera.lookAt(-20, currentHeight - 20, -30);
 
+    // Toggle direction for the next block
+    moveInX = !moveInX;
+}
 // Update block position and check alignment
 function update() {
     if (stack.length > 1) {
         const currentBlock = stack[stack.length - 1];
         currentPosition += movingDirection * speed;
-        currentBlock.position.x = currentPosition;
 
+        // Move in x or z direction based on moveInX flag
+        if (moveInX) {
+            currentBlock.position.x = currentPosition;
+        } else {
+            currentBlock.position.z = currentPosition;
+        }
+
+        // Reverse direction when reaching boundary
         if (currentPosition > 15 || currentPosition < -15) {
-            // Reverse direction when reaching boundary
-            movingDirection *= -1; 
+            movingDirection *= -1;
         }
     }
 }
-
 // Handle user input to "stack" the block
 window.addEventListener('keydown', (event) => {
     if (event.code === 'Space') {
@@ -111,36 +122,64 @@ window.addEventListener('keydown', (event) => {
         const previousBlock = stack[stack.length - 2];
 
         // Check alignment with the previous block
-        const overlap = previousBlock ? currentBlock.position.x - previousBlock.position.x : 0;
-        
+        // If previousBlock is not null or undefined, it calculates the overlap by finding the difference between currentBlock and previousBlock positions.
+        // If previousBlock is null or undefined (i.e., this is the first block), it returns 0, as there’s no overlap to calculate.
+        const overlap = moveInX ? previousBlock ? currentBlock.position.x - previousBlock.position.x : 0
+                                : previousBlock ? currentBlock.position.z - previousBlock.position.z : 0;
 
-        if (Math.abs(overlap) <= blockSizeX) {
-            if (Math.abs(overlap) > 0){
-                let fallBlockSizeX = blockSizeX; // Grab before chop-off value
-                blockSizeX -= Math.abs(overlap);
-                fallBlockSizeX -= blockSizeX; // New final fallBlockSizeX
+        const maxBlockSize = moveInX ? blockSizeX : blockSizeZ;
 
-                scene.remove(currentBlock); 
-                let geometry = new THREE.BoxGeometry(blockSizeX, blockHeight, blockSizeY);
+        if (Math.abs(overlap) <= maxBlockSize) {
+            if (Math.abs(overlap) > 0) {
+                let fallBlockSizeX = blockSizeX; // Grab before chop-off value for X
+                let fallBlockSizeZ = blockSizeZ; // Grab before chop-off value for Y
+
+                if (moveInX) {
+                    blockSizeX -= Math.abs(overlap);
+                    fallBlockSizeX = maxBlockSize - blockSizeX;
+                } else {
+                    blockSizeZ -= Math.abs(overlap);
+                    fallBlockSizeZ= maxBlockSize - blockSizeZ;
+                }
+
+                scene.remove(currentBlock);
+                let geometry = new THREE.BoxGeometry(blockSizeX, blockHeight, blockSizeZ);
                 let newBlock = new THREE.Mesh(geometry, currentBlock.material);
 
-                newBlock.position.set(
-                    previousBlock.position.x + (currentBlock.position.x - previousBlock.position.x)/2,
-                    currentBlock.position.y,
-                    currentBlock.position.z
-                );
+                if (moveInX) {
+                    newBlock.position.set(
+                        previousBlock.position.x + (currentBlock.position.x - previousBlock.position.x) / 2,
+                        currentBlock.position.y,
+                        currentBlock.position.z
+                    );
+                } else {
+                    newBlock.position.set(
+                        currentBlock.position.x,
+                        currentBlock.position.y,
+                        previousBlock.position.z + (currentBlock.position.z - previousBlock.position.z) / 2
+                    );
+                }
+
                 scene.add(newBlock);
-                stack[stack.length - 1].position.x =  previousBlock.position.x + (currentBlock.position.x - previousBlock.position.x)/2
+                stack[stack.length - 1] = newBlock; // Update current block in stack
                 
-                // calculate X length of falling block, (can be pos or neg)
-                const fallingBlockX = overlap > 0 ? newBlock.position.x + blockSizeX/2 + Math.abs(overlap)/2 : newBlock.position.x - blockSizeX/2 - Math.abs(overlap)/2
-                createFallingBlock(fallingBlockX, newBlock.position.y, newBlock.position.z, fallBlockSizeX);
+                // calculate falling block position based on overlap
+                if (moveInX){
+                    const fallingBlockX = overlap > 0 
+                    ? newBlock.position.x + blockSizeX / 2 + Math.abs(overlap) / 2 
+                    : newBlock.position.x - blockSizeX / 2 - Math.abs(overlap) / 2;
+                    createFallingBlock(fallingBlockX, newBlock.position.y, newBlock.position.z, fallBlockSizeX, fallBlockSizeZ);
+                } else {
+                    const fallingBlockZ = overlap > 0 
+                    ? newBlock.position.z + blockSizeZ / 2 + Math.abs(overlap) / 2 
+                    : newBlock.position.z - blockSizeZ / 2 - Math.abs(overlap) / 2;
+
+                    createFallingBlock(newBlock.position.x, newBlock.position.y, fallingBlockZ, fallBlockSizeX, fallBlockSizeZ);
+                }
             }
 
             addBlock(); // Add new block if aligned
             currentPosition = -15; // Reset position for next block
-            
-
         } else {
             console.log("Game Over!");
             showGameOver();
