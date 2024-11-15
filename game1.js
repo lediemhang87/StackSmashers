@@ -62,10 +62,10 @@ function createFallingBlock(x, y, z, fallBlockSizeX) {
 
 function createBlock(x, y, z) {
     const geometry = new THREE.BoxGeometry(blockSizeX, blockHeight, blockSizeY);
- 
+    let blockColor = new THREE.Color(Math.random(), Math.random(), Math.random());
     let material = new THREE.MeshPhongMaterial({
         // Base color of the block
-        color: new THREE.Color(Math.random(), Math.random(), Math.random()),       
+        color: blockColor,       
         ambient: 0.0,
         diffusivity: 0.5,
         specularity: 1.0,
@@ -74,6 +74,7 @@ function createBlock(x, y, z) {
     const block = new THREE.Mesh(geometry, material);
     block.position.set(x, y, z);
     scene.add(block);
+    scene.background = blockColor;
     stack.push(block);
 }
 
@@ -95,8 +96,13 @@ function update() {
     if (stack.length > 1) {
         const currentBlock = stack[stack.length - 1];
         currentPosition += movingDirection * speed;
-        currentBlock.position.x = currentPosition;
-
+        let check = (stack.length - 1) % 2; 
+        if (check === 0){
+            currentBlock.position.x = currentPosition;
+        }else{
+            currentBlock.position.z = currentPosition;
+        }
+        
         if (currentPosition > 15 || currentPosition < -15) {
             // Reverse direction when reaching boundary
             movingDirection *= -1; 
