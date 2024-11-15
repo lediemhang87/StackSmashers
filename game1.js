@@ -22,6 +22,7 @@ const speed = 0.15;
 let currentHeight = 0;
 let moveInX = false;
 const fallSpeed = 0.1; // May change to gravitational velocity function
+let score = 0;
 
 let isResetting = false;
 let resetStartTime;
@@ -61,6 +62,7 @@ export function resetGame() {
     // Set up the camera transition
     const endPosition = new THREE.Vector3(10, 10, 10);
     const endTarget = new THREE.Vector3(0, 5, 0);
+ 
 
     // Start the reset animation
     isResetting = true;
@@ -71,6 +73,7 @@ export function resetGame() {
 
         const elapsedTime = Date.now() - resetStartTime;
         const progress = Math.min(elapsedTime / resetDuration, 1);
+
 
         // Use a smooth step function for easing
         const easedProgress = progress * progress * (3 - 2 * progress);
@@ -111,6 +114,9 @@ function completeReset() {
     movingDirection = 1;
     currentHeight = 0;
     moveInX = false;
+    score = 0;
+    document.getElementById('score').innerText = `${score}`;
+    
 
     currentColor = new THREE.Color(Math.random(), Math.random(), Math.random());
     targetColor = new THREE.Color(Math.random(), Math.random(), Math.random());
@@ -145,7 +151,7 @@ function createFallingBlock(x, y, z, fallBlockSizeX, fallBlockSizeZ) {
         diffusivity: 0.5,
         specularity: 1.0,
         smoothness: 40.0
-    });
+    }); 
     const block = new THREE.Mesh(geometry, material);
     block.position.set(x, y, z);
     scene.add(block);
@@ -217,6 +223,9 @@ function addBlock() {
 
     // Toggle direction for the next block
     moveInX = !moveInX;
+
+    score++;
+    document.getElementById('score').innerText = `${score}`;
 }
 // Update block position and check alignment
 function update() {

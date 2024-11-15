@@ -11,7 +11,8 @@ import { resetGame } from './game1.js';
 startButton1.addEventListener('click', async () => {
     startOverlay.style.display = 'none';
     // Show loading screen
-    awaitingOverlay.style.visibility = 'visible'; 
+    awaitingOverlay.style.visibility = 'visible';
+    score.style.visibility = 'visible';
 
     await import('./game1.js');
 
