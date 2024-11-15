@@ -48,11 +48,6 @@ createBlock(0, 0, 0);
 
 export function resetGame() {
     
-
-    // // Reset the camera here
-    // camera.position.set(10, 10, 10);
-    // camera.lookAt(0, 5, 0);
-
     // Store current camera position and target
     const startPosition = camera.position.clone();
     const startTarget = new THREE.Vector3();
@@ -218,8 +213,8 @@ function addBlock() {
     );
 
     currentHeight += blockHeight;
-    camera.position.y = currentHeight + 10;
-    camera.lookAt(-20, currentHeight - 20, -30);
+    camera.position.y = currentHeight + 8;
+    camera.lookAt(-20, currentHeight - 7, -20);
 
     // Toggle direction for the next block
     moveInX = !moveInX;
