@@ -18,23 +18,121 @@ let blockSizeZ = 10;
 const blockHeight = 2;
 let currentPosition = 10;
 let movingDirection = 1;
-const speed = 0.6;
+const speed = 0.15;
 let currentHeight = 0;
 let moveInX = false;
+const fallSpeed = 0.1; // May change to gravitational velocity function
 
+let isResetting = false;
+let resetStartTime;
+const resetDuration = 1000; // 1 second
+const blockResetTimeout = 300;
 
 let currentColor = new THREE.Color(Math.random(), Math.random(), Math.random());
 let targetColor = new THREE.Color(Math.random(), Math.random(), Math.random());
 let lerpFactor = 0.1;
 const ambientLight = new THREE.AmbientLight(0x404040, 1);
+ambientLight.name = 'ambientLight';
 scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.name = 'directionalLight';
 directionalLight.position.set(5, 10, 5);
 scene.add(directionalLight);
 
 // Add the base block
 createBlock(0, 0, 0); 
+
+// game1.js
+
+export function resetGame() {
+    
+
+    // // Reset the camera here
+    // camera.position.set(10, 10, 10);
+    // camera.lookAt(0, 5, 0);
+
+    // Store current camera position and target
+    const startPosition = camera.position.clone();
+    const startTarget = new THREE.Vector3();
+    camera.getWorldDirection(startTarget);
+    startTarget.add(camera.position);
+
+    // Set up the camera transition
+    const endPosition = new THREE.Vector3(10, 10, 10);
+    const endTarget = new THREE.Vector3(0, 5, 0);
+
+    // Start the reset animation
+    isResetting = true;
+    resetStartTime = Date.now();
+
+    function animateReset() {
+        if (!isResetting) return;
+
+        const elapsedTime = Date.now() - resetStartTime;
+        const progress = Math.min(elapsedTime / resetDuration, 1);
+
+        // Use a smooth step function for easing
+        const easedProgress = progress * progress * (3 - 2 * progress);
+
+        // Interpolate camera position
+        camera.position.lerpVectors(startPosition, endPosition, easedProgress);
+
+        // Interpolate camera target
+        const currentTarget = new THREE.Vector3();
+        currentTarget.lerpVectors(startTarget, endTarget, easedProgress);
+        camera.lookAt(currentTarget);
+
+        if (progress < 1) {
+            requestAnimationFrame(animateReset);
+        } else {
+            isResetting = false;
+            setTimeout(completeReset, blockResetTimeout); // Wait until finished to reset blocks from scene + sleep for a bit
+            // completeReset(); 
+        }
+            
+    }
+
+    animateReset();
+    
+    
+}
+
+function completeReset() {
+    // remove all blocks from scene
+    for (let block of stack) {
+        scene.remove(block);
+    }
+
+    stack = [];
+    blockSizeX = 10;
+    blockSizeZ = 10;
+    currentPosition = 10;
+    movingDirection = 1;
+    currentHeight = 0;
+    moveInX = false;
+
+    currentColor = new THREE.Color(Math.random(), Math.random(), Math.random());
+    targetColor = new THREE.Color(Math.random(), Math.random(), Math.random());
+    lerpFactor = 0.1;
+
+    // Clear existing lights
+    scene.remove(scene.getObjectByName('ambientLight'));
+    scene.remove(scene.getObjectByName('directionalLight'));
+    // Make new lights
+    const ambientLight = new THREE.AmbientLight(0x404040, 1);
+    ambientLight.name = 'ambientLight';
+    scene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 10, 5);
+    directionalLight.name = 'directionalLight';
+    scene.add(directionalLight);
+
+    // Add the base block
+    createBlock(0, 0, 0); 
+}
+
 
 function createFallingBlock(x, y, z, fallBlockSizeX, fallBlockSizeZ) {
     const geometry = new THREE.BoxGeometry(fallBlockSizeX, blockHeight, fallBlockSizeZ);
@@ -52,8 +150,6 @@ function createFallingBlock(x, y, z, fallBlockSizeX, fallBlockSizeZ) {
     block.position.set(x, y, z);
     scene.add(block);
 
-    const fallSpeed = 0.1; // May change to gravitational velocity function
-    
     function animateFall() {
         block.position.y -= fallSpeed;
         if (block.position.y > (currentHeight - 15)) {  // Adjust this value based on where you want the block to disappear
@@ -115,13 +211,9 @@ function addBlock() {
         lastBlock.position.z
     );
 
-
-
     currentHeight += blockHeight;
     camera.position.y = currentHeight + 10;
     camera.lookAt(-20, currentHeight - 20, -30);
-
-    
 
     // Toggle direction for the next block
     moveInX = !moveInX;

@@ -3,6 +3,9 @@ const awaitingOverlay = document.getElementById('awaitingOverlay');
 const gameOverOverlay = document.getElementById('gameOverOverlay');
 const startButton = document.getElementById('startButton');
 const restartButton = document.getElementById('restartButton');
+const restartLevelButton = document.getElementById('restartLevelButton');
+import { resetGame } from './game1.js';
+
 
 // Start the game when clicking the Start button
 startButton1.addEventListener('click', async () => {
@@ -32,6 +35,13 @@ startButton2.addEventListener('click', async () => {
 restartButton.addEventListener('click', async () => {
     gameOverOverlay.style.visibility = 'hidden';
     location.reload();
+});
+
+// Restart the game when clicking the Restart button
+restartLevelButton.addEventListener('click', async () => {
+    gameOverOverlay.style.visibility = 'hidden';
+    resetGame();
+    // await import('./game1.js');
 });
 
 export function showGameOver() {
