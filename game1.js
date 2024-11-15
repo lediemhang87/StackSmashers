@@ -18,10 +18,14 @@ let blockSizeZ = 10;
 const blockHeight = 2;
 let currentPosition = 10;
 let movingDirection = 1;
-const speed = 0.2;
+const speed = 0.6;
 let currentHeight = 0;
 let moveInX = false;
 
+
+let currentColor = new THREE.Color(Math.random(), Math.random(), Math.random());
+let targetColor = new THREE.Color(Math.random(), Math.random(), Math.random());
+let lerpFactor = 0.1;
 const ambientLight = new THREE.AmbientLight(0x404040, 1);
 scene.add(ambientLight);
 
@@ -31,8 +35,6 @@ scene.add(directionalLight);
 
 // Add the base block
 createBlock(0, 0, 0); 
-
-
 
 function createFallingBlock(x, y, z, fallBlockSizeX, fallBlockSizeZ) {
     const geometry = new THREE.BoxGeometry(fallBlockSizeX, blockHeight, fallBlockSizeZ);
@@ -63,23 +65,47 @@ function createFallingBlock(x, y, z, fallBlockSizeX, fallBlockSizeZ) {
     animateFall();
 }
 
+
+
 function createBlock(x, y, z) {
     const geometry = new THREE.BoxGeometry(blockSizeX, blockHeight, blockSizeZ);
-    let blockColor = new THREE.Color(Math.random(), Math.random(), Math.random());
+
+    // Interpolate current color toward the target color using lerp
+    currentColor.lerp(targetColor, lerpFactor);
+
+    // Create the material with the updated current color
     let material = new THREE.MeshPhongMaterial({
-        // Base color of the block
-        color: blockColor,       
-        ambient: 0.0,
-        diffusivity: 0.5,
-        specularity: 1.0,
-        smoothness: 40.0
+        color: currentColor, // Directly use currentColor
+        specular: 0x555555,
+        shininess: 40
     });
+
     const block = new THREE.Mesh(geometry, material);
     block.position.set(x, y, z);
     scene.add(block);
-    scene.background = blockColor;
     stack.push(block);
+
+
+    // Update the background color to match the current block color
+    scene.background = currentColor.clone();
+
+    const colorDifference = rgbDistance(currentColor,targetColor);
+
+    const colorThreshold = 0.3; // Adjust this threshold as needed
+
+    if (colorDifference < colorThreshold) {
+        targetColor = new THREE.Color(Math.random(), Math.random(), Math.random()); // New random color
+    }
+    
 }
+
+function rgbDistance(color1, color2) {
+    const rDiff = color1.r - color2.r;
+    const gDiff = color1.g - color2.g;
+    const bDiff = color1.b - color2.b;
+    return Math.sqrt(rDiff * rDiff + gDiff * gDiff + bDiff * bDiff);
+  }
+
 
 function addBlock() {
     const lastBlock = stack[stack.length - 1];
@@ -89,9 +115,13 @@ function addBlock() {
         lastBlock.position.z
     );
 
+
+
     currentHeight += blockHeight;
     camera.position.y = currentHeight + 10;
     camera.lookAt(-20, currentHeight - 20, -30);
+
+    
 
     // Toggle direction for the next block
     moveInX = !moveInX;
