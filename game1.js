@@ -318,16 +318,28 @@ export function cleanupGame1() {
 }
 
 function completeReset() {
-    // remove all blocks from scene
-    for (let block of stack) {
-        scene.remove(block);
+    // remove all blocks from scene & physics world
+    for (let i = stack.length - 1; i >= 0; i--) {
+        scene.remove(stack[i]);
+        stack.pop();
+      }
+
+
+    // remove all physics bodies and corresponding meshes
+    for (let i = physicsBodies.length - 1; i >= 0; i--) {
+        const { mesh, body } = physicsBodies[i];
+        if (mesh) {
+            scene.remove(mesh);
+            if (mesh.geometry) mesh.geometry.dispose();
+            if (mesh.material) mesh.material.dispose();
+        }
+        if (body) {
+            world.removeBody(body);
+        }
+        physicsBodies.pop();
     }
 
-    stack = [];
-    physicsBodies = []
-    while (world.bodies.length > 0) {
-        world.removeBody(world.bodies[0]); 
-    }
+
     blockSizeX = 10;
     blockSizeZ = 10;
     currentPosition = 10;

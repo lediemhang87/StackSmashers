@@ -114,9 +114,8 @@ function adjustCameraPosition() {
     const targetHeight = currentHeight + 10;
 
     // Smooth transition to the target height
-    const speed = 0.05; // Adjust speed for smoother/slower movement
-    camera.position.y += (targetHeight - camera.position.y) * speed;
-
+    camera.position.set(camera.position.x, targetHeight, camera.position.z);
+    
     // Update the camera's look-at point
     camera.lookAt(0, currentHeight, 0);
 }
@@ -148,23 +147,46 @@ window.addEventListener('keydown', (event) => {
         const currentBlock = stack[stack.length - 1];
         const previousBlock = stack[stack.length - 2];
 
-        // Check alignment with the previous block
-        const overlap = previousBlock ? currentBlock.position.x - previousBlock.position.x : 0;
-        
+        if (previousBlock) {
+            let isValidPlacement = false;
 
-        if (Math.abs(overlap) <= blockSizeX) {
+            // Iterate through all blocks in both groups
+            previousBlock.children.forEach(prevChild => {
+                currentBlock.children.forEach(currChild => {
+                    const prevX = prevChild.position.x + previousBlock.position.x;
+                    const prevZ = prevChild.position.z + previousBlock.position.z;
 
-            addBlock(); // Add new block if aligned
-            checkBalance();   
-            currentPosition = -15; // Reset position for next block
-            
+                    const currX = currChild.position.x + currentBlock.position.x;
+                    const currZ = currChild.position.z + currentBlock.position.z;
 
+                    // Check if the current block is directly above the previous block
+                    if (Math.abs(currX - prevX) <= blockHeight && 
+                        Math.abs(currZ - prevZ) <= blockHeight) {
+                        isValidPlacement = true;
+                    } else {
+                        console.log("Invalid placement.");
+                        console.log(currX, prevX, currZ, prevZ);
+                    }
+                });
+            });
+
+            // Validate placement
+            if (isValidPlacement) {
+                addBlock(); // Place the next tile
+                currentPosition = -15; // Reset position for the next block
+            } else {
+                console.log("Game Over! No block beneath.");
+                showGameOver();
+            }
         } else {
-            console.log("Game Over!");
-            showGameOver();
+            // First block placement is always valid
+            addBlock();
+            currentPosition = -15;
         }
     }
 });
+
+
 
 function checkBalance() {
     let totalX = 0;
