@@ -21,8 +21,7 @@ const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
 
-camera.position.set(15, 15, 15);
-camera.lookAt(0, 5, 0);
+
 
 const renderer = new THREE.WebGLRenderer({antialias: true});
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -34,11 +33,14 @@ let blockSizeZ = 10;
 const blockHeight = 2;
 let currentPosition = 10;
 let movingDirection = 1;
-const speed = 0.25;
+const speed = 0.20;
 let currentHeight = 0;
 let moveInX = false;
 const fallSpeed = 0.1; // May change to gravitational velocity function
 let score = 0;
+
+camera.position.set(15, 15, 15);
+camera.lookAt(0, blockHeight, 0);
 
 let isResetting = false;
 let resetStartTime;
@@ -227,33 +229,28 @@ setInterval(() => {
 // game1.js
 
 export function resetGame() {
-    // Store current camera position and target
-    const startPosition = camera.position.clone();
+    isResetting = true; // Enter reset mode
+
+    const startPosition = camera.position.clone(); // Current camera position
     const startTarget = new THREE.Vector3();
-    camera.getWorldDirection(startTarget);
+    camera.getWorldDirection(startTarget).normalize; // Current look-at direction
     startTarget.add(camera.position);
 
-    // Set up the camera transition
-    const endPosition = new THREE.Vector3(15, 15, 15);
-    const endTarget = new THREE.Vector3(0, 5, 0);
- 
-    // Start the reset animation
-    isResetting = true;
-    resetStartTime = Date.now();
+    const endPosition = new THREE.Vector3(15, 15, 15); // Reset position
+    const endTarget = new THREE.Vector3(0, blockHeight, 0); // Reset look-at point
+
+    const resetStartTime = Date.now();
 
     function animateReset() {
-        if (!isResetting) return;
-
         const elapsedTime = Date.now() - resetStartTime;
         const progress = Math.min(elapsedTime / resetDuration, 1);
 
-        // Use a smooth step function for easing
+        // Smoothstep easing function
         const easedProgress = progress * progress * (3 - 2 * progress);
 
-        // Interpolate camera position
+        // Lerp camera position and look-at point
         camera.position.lerpVectors(startPosition, endPosition, easedProgress);
 
-        // Interpolate camera target
         const currentTarget = new THREE.Vector3();
         currentTarget.lerpVectors(startTarget, endTarget, easedProgress);
         camera.lookAt(currentTarget);
@@ -261,17 +258,26 @@ export function resetGame() {
         if (progress < 1) {
             requestAnimationFrame(animateReset);
         } else {
-            isResetting = false;
-            setTimeout(completeReset, blockResetTimeout); // Wait until finished to reset blocks from scene + sleep for a bit
-            // completeReset(); 
+            // Sync camera state after reset
+            const finalX = camera.position.x;
+            const finalZ = camera.position.z;
+
+            // Synchronize cameraAngle and targetAngle to prevent jitter
+            cameraAngle = Math.atan2(finalZ, finalX);
+            targetAngle = cameraAngle;
+
+            // Perform reset operations
+            setTimeout(() => {
+                currentHeight = blockHeight; // Reinitialize to base block height
+                completeReset(); // Clear the stack and reset the scene
+                isResetting = false; // Resume user control
+            }, blockResetTimeout);
         }
-            
     }
 
     animateReset();
-    
-    
 }
+
 
 export function cleanupGame1() {
     // Dispose of the stack and materials
@@ -457,10 +463,15 @@ function addBlock() {
         lastBlock.position.y + blockHeight,
         lastBlock.position.z
     );
-
-    currentHeight += blockHeight;
-    camera.position.y = currentHeight + 8;
-    camera.lookAt(-20, currentHeight - 7, -20);
+    
+    if (stack.length > 2) {
+        currentHeight += blockHeight;
+        // Adjust camera position and focus
+        camera.position.y = currentHeight + 15;
+        camera.lookAt(0, currentHeight, 0);
+    } else {
+        currentHeight += blockHeight; // fixes stutter jumping since start with a block on plane.
+    }
 
     // Toggle direction for the next block
     moveInX = !moveInX;
@@ -560,6 +571,38 @@ window.addEventListener('keydown', (event) => {
     }
 });
 
+let cameraAngle = Math.PI / 4; // Initial angle (45 degrees)
+const cameraRadius = 20; // Fixed radius for the circular path
+const cameraSpeed = 0.05; // Speed of rotation
+let targetAngle = cameraAngle;
+
+window.addEventListener('keydown', (event) => {
+    if (event.code === 'ArrowRight') {
+        // Rotate counter-clockwise
+        targetAngle -= cameraSpeed;
+    } else if (event.code === 'ArrowLeft') {
+        // Rotate clockwise
+        targetAngle += cameraSpeed;
+    }
+});
+function animateCamera() {
+    if (!isResetting) {
+        // Gradually interpolate the angle
+        cameraAngle += (targetAngle - cameraAngle) * 0.1;
+
+        // Update the camera's position
+        const cameraX = cameraRadius * Math.cos(cameraAngle);
+        const cameraZ = cameraRadius * Math.sin(cameraAngle);
+
+        camera.position.set(cameraX, currentHeight + 15, cameraZ);
+        camera.lookAt(0, currentHeight, 0);
+    }
+    
+
+    requestAnimationFrame(animateCamera);
+}
+
+animateCamera();
 animate();
 
 function animate() {
