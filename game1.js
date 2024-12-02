@@ -18,7 +18,7 @@ let blockSizeZ = 10;
 const blockHeight = 2;
 let currentPosition = 10;
 let movingDirection = 1;
-const speed = 0.15;
+const speed = 0.25;
 let currentHeight = 0;
 let moveInX = false;
 const fallSpeed = 0.1; // May change to gravitational velocity function
@@ -94,6 +94,30 @@ export function resetGame() {
     animateReset();
     
     
+}
+
+export function cleanupGame1() {
+    // Dispose of the stack and materials
+    stack.forEach(block => {
+        if (block.geometry) block.geometry.dispose();
+        if (block.material) block.material.dispose();
+        scene.remove(block);
+    });
+    stack = [];
+
+    // Dispose of lights and other objects
+    scene.children.forEach(obj => {
+        if (obj.type === 'Mesh' || obj.type === 'Light') {
+            scene.remove(obj);
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) obj.material.dispose();
+        }
+    });
+
+    // Dispose of renderer
+    if (renderer) {
+        renderer.dispose();
+    }
 }
 
 function completeReset() {
