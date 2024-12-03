@@ -65,77 +65,45 @@ function createGround() {
     // Create PlaneGeometry with subdivisions for vertex manipulation
 
     const groundWidth = 50;
-
     const groundHeight = 50;
-
     const widthSegments = 50; // Increase for more detailed bumps
-
     const heightSegments = 50;
-
     const groundGeometry = new THREE.PlaneGeometry(groundWidth, groundHeight, widthSegments, heightSegments);
 
-
-
     // Manipulate vertices to create bumps
-
     const positionAttribute = groundGeometry.attributes.position;
 
     for (let i = 0; i < positionAttribute.count; i++) {
-
         const x = positionAttribute.getX(i);
-
         const y = positionAttribute.getY(i);
-
-        const z = (Math.random() * 2 - 1)/3; // Random height between -1 and 1
-
+        const z = (Math.random() * 2 - 1)/3;
         positionAttribute.setZ(i, z);
 
     }
 
     groundGeometry.computeVertexNormals(); // Recalculate normals for proper shading
 
-
-
     // Create a material for the ground
-
     const groundMaterial = new THREE.MeshStandardMaterial({
-
         color: 0x557d5c, // A greenish color
-
         roughness: 0.1,
-
         metalness: 0,
-
     });
 
-
-
     // Create a mesh for the ground
-
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-
     ground.rotation.x = -Math.PI / 2; // Rotate to make it horizontal
-
     scene.add(ground);
 
-
-
     // Create the physics representation as a flat plane
-
     const groundShape = new CANNON.Plane();
-
     const groundBody = new CANNON.Body({
-
         mass: 0, // Static body
-
         shape: groundShape,
-
     });
 
     groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0); // Rotate to match Three.js
-
     world.addBody(groundBody);
-
 }
 
 createGround();
@@ -269,7 +237,6 @@ export function resetGame() {
     const endPosition = new THREE.Vector3(15, 15, 15);
     const endTarget = new THREE.Vector3(0, 5, 0);
  
-
     // Start the reset animation
     isResetting = true;
     resetStartTime = Date.now();
@@ -306,49 +273,49 @@ export function resetGame() {
     
 }
 
-// export function cleanupGame1() {
-//     // Dispose of the stack and materials
-//     stack.forEach(block => {
-//         if (block.geometry) block.geometry.dispose();
-//         if (block.material) block.material.dispose();
-//         scene.remove(block);
-//     });
-//     stack = [];
+export function cleanupGame1() {
+    // Dispose of the stack and materials
+    stack.forEach(block => {
+        if (block.geometry) block.geometry.dispose();
+        if (block.material) block.material.dispose();
+        scene.remove(block);
+    });
+    stack = [];
 
-//     physicsBodies.forEach(({ mesh, body }) => {
-//         if (mesh) {
-//             if (mesh.geometry) mesh.geometry.dispose();
-//             if (mesh.material) mesh.material.dispose();
-//             scene.remove(mesh);
-//         }
-//         if (body) {
-//             world.removeBody(body); // Remove the physics body from the physics world
-//         }
-//     });
-//     physicsBodies = [];
+    physicsBodies.forEach(({ mesh, body }) => {
+        if (mesh) {
+            if (mesh.geometry) mesh.geometry.dispose();
+            if (mesh.material) mesh.material.dispose();
+            scene.remove(mesh);
+        }
+        if (body) {
+            world.removeBody(body); // Remove the physics body from the physics world
+        }
+    });
+    physicsBodies = [];
 
-//     // Dispose of lights and other objects
-//     scene.children.forEach(obj => {
-//         if (obj.type === 'Mesh' || obj.type === 'Light') {
-//             scene.remove(obj);
-//             if (obj.geometry) obj.geometry.dispose();
-//             if (obj.material) obj.material.dispose();
-//         }
-//     });
+    // Dispose of lights and other objects
+    scene.children.forEach(obj => {
+        if (obj.type === 'Mesh' || obj.type === 'Light') {
+            scene.remove(obj);
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) obj.material.dispose();
+        }
+    });
 
-//     // Dispose of renderer
-//     if (renderer) {
-//         renderer.dispose();
-//     }
+    // Dispose of renderer
+    if (renderer) {
+        renderer.dispose();
+    }
 
-//     while (world.bodies.length > 0) {
-//         world.removeBody(world.bodies[0]); // Remove all bodies from the physics world
-//     }
+    while (world.bodies.length > 0) {
+        world.removeBody(world.bodies[0]); // Remove all bodies from the physics world
+    }
 
-//     console.log(physicsBodies)
-//     console.log(world)
+    console.log(physicsBodies)
+    console.log(world)
 
-// }
+}
 
 function completeReset() {
     // remove all blocks from scene
@@ -369,7 +336,6 @@ function completeReset() {
     moveInX = false;
     score = 0;
     document.getElementById('score').innerText = `${score}`;
-    
 
     currentColor = new THREE.Color(Math.random(), Math.random(), Math.random());
     targetColor = new THREE.Color(Math.random(), Math.random(), Math.random());
@@ -445,7 +411,8 @@ function createBlock(x, y, z) {
 
     const colorDifference = rgbDistance(currentColor,targetColor);
 
-    const colorThreshold = 0.3; // Adjust this threshold as needed
+    // This threshold is the color difference of the prev color and current color
+    const colorThreshold = 0.3; // Adjust this threshold as needed.
 
     if (colorDifference < colorThreshold) {
         targetColor = new THREE.Color(Math.random(), Math.random(), Math.random()); // New random color
@@ -468,7 +435,7 @@ function rgbDistance(color1, color2) {
     const gDiff = color1.g - color2.g;
     const bDiff = color1.b - color2.b;
     return Math.sqrt(rDiff * rDiff + gDiff * gDiff + bDiff * bDiff);
-  }
+}
 
 
 function addBlock() {
@@ -489,6 +456,7 @@ function addBlock() {
     score++;
     document.getElementById('score').innerText = `${score}`;
 }
+
 // Update block position and check alignment
 function update() {
     if (stack.length > 1) {
