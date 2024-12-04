@@ -1,7 +1,5 @@
 import * as THREE from 'three';
 import { showGameOver } from './index.js';
-
-
 import * as CANNON from 'cannon-es';
 
 
@@ -47,8 +45,8 @@ let resetStartTime;
 const resetDuration = 1000; // 1 second
 const blockResetTimeout = 300;
 
-let currentColor = new THREE.Color(Math.random(), Math.random(), Math.random());
-let targetColor = new THREE.Color(Math.random(), Math.random(), Math.random());
+let currentColor = getRandomColorExcludingNavyBlue();
+let targetColor = getRandomColorExcludingNavyBlue();
 let lerpFactor = 0.1;
 const ambientLight = new THREE.AmbientLight(0x404040, 1);
 ambientLight.name = 'ambientLight';
@@ -61,6 +59,40 @@ scene.add(directionalLight);
 
 // Add the base block
 createBlock(0, 0, 0); 
+
+//background setup
+function createVerticalGradientTexture(baseColor) {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Create gradient from base color to grey
+    const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, '#000080'); // Bottom color (current block color)
+    gradient.addColorStop(1,  baseColor.getStyle()); // Top color (grey)
+
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Create a texture from the canvas
+    const texture = new THREE.CanvasTexture(canvas);
+    return texture;
+}
+function getRandomColorExcludingNavyBlue() {
+    let color;
+    do {
+        // Generate a random color
+        color = new THREE.Color(Math.random(), Math.random(), Math.random());
+    } while (isCloseToNavyBlue(color));  // Keep trying until it's not navy blue
+
+    return color;
+}
+function isCloseToNavyBlue(color) {
+    // Navy blue is approximately rgb(0, 0, 128) or #000080
+    const navyBlue = new THREE.Color(0, 0, 128);
+    return rgbDistance(color, navyBlue) < 0.1; // Threshold for "closeness"
+}
 
 function createGround() {
 
@@ -425,8 +457,10 @@ function createBlock(x, y, z) {
 
 
     // Update the background color to match the current block color
-    scene.background = currentColor.clone();
-
+    // Update the background color to match the current block color
+    const gradientTexture = createVerticalGradientTexture(currentColor);
+    scene.background = gradientTexture.clone();
+   
     const colorDifference = rgbDistance(currentColor,targetColor);
 
     // This threshold is the color difference of the prev color and current color
@@ -565,8 +599,42 @@ window.addEventListener('keydown', (event) => {
             addBlock(); // Add new block if aligned
             currentPosition = -15; // Reset position for next block
         } else {
-            console.log("Game Over!");
-            showGameOver();
+            // Save the initial camera position and the target final position
+            const initialCameraPosition = camera.position.clone();
+            const initialLookAt = camera.getWorldDirection(new THREE.Vector3()).add(camera.position);
+            
+            // Calculate the final camera position and look-at target
+            const towerHeight = currentHeight + blockHeight;
+            const targetCameraPosition = new THREE.Vector3(0, towerHeight / 2, towerHeight * 2);  
+            const targetLookAt = new THREE.Vector3(0, towerHeight / 1.5, 0);  
+
+            // Start the camera transition animation
+            let transitionStartTime = Date.now();
+            const transitionDuration = 1500;
+
+            function animateCameraTransition() {
+                const elapsedTime = Date.now() - transitionStartTime;
+                const progress = Math.min(elapsedTime / transitionDuration, 1);
+
+                // Smooth easing function for the progress
+                const easedProgress = progress * progress * (3 - 2 * progress);
+
+                // Interpolate the camera's position and look-at target
+                camera.position.lerpVectors(initialCameraPosition, targetCameraPosition, easedProgress);
+                camera.lookAt(new THREE.Vector3().lerpVectors(initialLookAt, targetLookAt, easedProgress));
+
+                // Continue animation if still in progress
+                if (progress < 1) {
+                    requestAnimationFrame(animateCameraTransition);
+                } else {
+                    // Once the camera has reached the final position, delay the game over screen
+                    setTimeout(() => {
+                        showGameOver();
+                    }, 500); // Adjust the delay if needed
+                }
+            }
+
+            animateCameraTransition(); // Start the animation
         }
     }
 });
