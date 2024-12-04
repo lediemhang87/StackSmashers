@@ -197,11 +197,7 @@ setInterval(() => {
 }, 7000);
 
 
-
-// game1.js
-
 export function resetGame() {
-    
     isResetting = true;
     // Store current camera position and target
     const startPosition = camera.position.clone();
@@ -254,10 +250,7 @@ export function resetGame() {
         }
             
     }
-
     animateReset();
-    
-    
 }
 
 export function cleanupGame1() {
@@ -311,7 +304,6 @@ function completeReset() {
         stack.pop();
       }
 
-
     // remove all physics bodies and corresponding meshes
     for (let i = physicsBodies.length - 1; i >= 0; i--) {
         const { mesh, body } = physicsBodies[i];
@@ -325,7 +317,6 @@ function completeReset() {
         }
         physicsBodies.pop();
     }
-
 
     blockSizeX = 10;
     blockSizeZ = 10;
@@ -382,8 +373,6 @@ function createFallingBlock(x, y, z, fallBlockSizeX, fallBlockSizeZ) {
     world.addBody(body);
     physicsBodies.push({ mesh: block, body: body });
 }
-
-
 
 
 function createBlock(x, y, z) {
@@ -446,10 +435,6 @@ function addBlock() {
         lastBlock.position.y + blockHeight,
         lastBlock.position.z
     );
-
-    // currentHeight += blockHeight;
-    // camera.position.y = currentHeight + 8;
-    // camera.lookAt(-20, currentHeight - 7, -20);
 
     if (stack.length > 2) {
 
@@ -601,21 +586,13 @@ let targetAngle = cameraAngle;
 
 
 window.addEventListener('keydown', (event) => {
-
     if (event.code === 'ArrowRight') {
-
         // Rotate counter-clockwise
-
         targetAngle -= cameraSpeed;
-
     } else if (event.code === 'ArrowLeft') {
-
         // Rotate clockwise
-
         targetAngle += cameraSpeed;
-
     }
-
 });
 
 function animateCamera() {
@@ -647,7 +624,6 @@ function animate() {
 
     update();
     renderer.render(scene, camera);
-    
 }
 
 window.addEventListener('resize', () => {
