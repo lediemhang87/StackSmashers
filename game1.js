@@ -5,17 +5,11 @@ import * as CANNON from 'cannon-es';
 
 
 const world = new CANNON.World();
-
 world.gravity.set(0, -9.82, 0); // Gravity pointing down
-
 world.broadphase = new CANNON.NaiveBroadphase();
-
 world.solver.iterations = 10;
-
 let physicsBodies = [];
-
 const scene = new THREE.Scene();
-
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
 
@@ -36,6 +30,7 @@ const fallSpeed = 0.1; // May change to gravitational velocity function
 let score = 0;
 
 
+let cameraState = 'gameplay'; // Can be 'gameplay', 'gameover', etc.
 camera.position.set(15, 15, 15);
 camera.lookAt(0, blockHeight, 0);
 
@@ -206,19 +201,18 @@ setInterval(() => {
 // game1.js
 
 export function resetGame() {
+    
+    isResetting = true;
     // Store current camera position and target
     const startPosition = camera.position.clone();
     const startTarget = new THREE.Vector3();
-    camera.getWorldDirection(startTarget);
+    camera.getWorldDirection(startTarget).normalize;
     startTarget.add(camera.position);
 
-    // Set up the camera transition
-    const endPosition = new THREE.Vector3(15, 15, 15);
-    const endTarget = new THREE.Vector3(0, 5, 0);
- 
-    // Start the reset animation
-    isResetting = true;
-    resetStartTime = Date.now();
+    const endPosition = new THREE.Vector3(15, 15, 15); // Reset position
+    const endTarget = new THREE.Vector3(0, blockHeight, 0); // Reset look-at point
+
+    const resetStartTime = Date.now();
 
     function animateReset() {
         if (!isResetting) return;
@@ -240,8 +234,22 @@ export function resetGame() {
         if (progress < 1) {
             requestAnimationFrame(animateReset);
         } else {
-            isResetting = false;
-            setTimeout(completeReset, blockResetTimeout); // Wait until finished to reset blocks from scene + sleep for a bit
+            //isResetting = false;
+            //setTimeout(completeReset, blockResetTimeout); // Wait until finished to reset blocks from scene + sleep for a bit
+            
+            // Sync camera state after reset
+            const finalX = camera.position.x;
+            const finalZ = camera.position.z;
+            // Synchronize cameraAngle and targetAngle to prevent jitter
+            cameraAngle = Math.atan2(finalZ, finalX);
+            targetAngle = cameraAngle;
+            // Perform reset operations
+            setTimeout(() => {
+                currentHeight = blockHeight; // Reinitialize to base block height
+                completeReset(); // Clear the stack and reset the scene
+                isResetting = false; // Resume user control
+            }, blockResetTimeout);
+            cameraState = 'gameplay';
             // completeReset(); 
         }
             
@@ -544,6 +552,7 @@ window.addEventListener('keydown', (event) => {
             addBlock(); // Add new block if aligned
             currentPosition = -15; // Reset position for next block
         } else {
+            cameraState = 'gameover';
             // Save the initial camera position and the target final position
             const initialCameraPosition = camera.position.clone();
             const initialLookAt = camera.getWorldDirection(new THREE.Vector3()).add(camera.position);
@@ -585,11 +594,8 @@ window.addEventListener('keydown', (event) => {
 });
 
 let cameraAngle = Math.PI / 4; // Initial angle (45 degrees)
-
 const cameraRadius = 20; // Fixed radius for the circular path
-
 const cameraSpeed = 0.05; // Speed of rotation
-
 let targetAngle = cameraAngle;
 
 
@@ -612,7 +618,19 @@ window.addEventListener('keydown', (event) => {
 
 });
 
-
+function animateCamera() {
+    if (cameraState === 'gameplay' && !isResetting) {
+        // Gradually interpolate the angle
+        cameraAngle += (targetAngle - cameraAngle) * 0.1;
+        // Update the camera's position
+        const cameraX = cameraRadius * Math.cos(cameraAngle);
+        const cameraZ = cameraRadius * Math.sin(cameraAngle);
+        camera.position.set(cameraX, currentHeight + 15, cameraZ);
+        camera.lookAt(0, currentHeight, 0);
+    }
+    requestAnimationFrame(animateCamera);
+}
+animateCamera();
 animate();
 
 function animate() {
