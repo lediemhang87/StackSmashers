@@ -11,7 +11,8 @@ import { resetGame } from './game1.js';
 startButton1.addEventListener('click', async () => {
     startOverlay.style.display = 'none';
     // Show loading screen
-    awaitingOverlay.style.visibility = 'visible'; 
+    awaitingOverlay.style.visibility = 'visible';
+    score.style.visibility = 'visible';
 
     await import('./game1.js');
 
@@ -20,12 +21,19 @@ startButton1.addEventListener('click', async () => {
 });
 
 startButton2.addEventListener('click', async () => {
+    const rendererDom = document.querySelector('canvas');
+    if (rendererDom) {
+        rendererDom.parentNode.removeChild(rendererDom);
+    }
+    // Optionally, call a cleanup function from game1.js to dispose of objects
+    if (typeof cleanupGame1 === 'function') {
+        cleanupGame1();
+    }
     startOverlay.style.display = 'none';
     // Show loading screen
     awaitingOverlay.style.visibility = 'visible'; 
 
     await import('./game2.js');
-
     // Hide loading screen and start the game
     awaitingOverlay.style.visibility = 'hidden';
 });

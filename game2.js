@@ -5,7 +5,7 @@ const scene = new THREE.Scene();
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-camera.position.set(10, 10, 10);
+camera.position.set(20, 20, 20);
 camera.lookAt(0, 5, 0);
 
 const renderer = new THREE.WebGLRenderer({antialias: true});
@@ -29,50 +29,115 @@ directionalLight.position.set(5, 10, 5);
 scene.add(directionalLight);
 
 // Add the base block
-createBlock(0, 0, 0); 
+//createBlock(0, 0, 0); 
+
+//createCustomBlock("T", 0, 0, 0);
+//createCustomBlock("L", 0, 0, 0);
+createCustomBlock("Line", 0, 0, 0);
 
 
-function createBlock(x, y, z) {
-    const geometry = new THREE.BoxGeometry(blockSizeX, blockHeight, blockSizeY);
- 
-    let material = new THREE.MeshPhongMaterial({
-        // Base color of the block
-        color: new THREE.Color(Math.random(), Math.random(), Math.random()),       
-        ambient: 0.0,
-        diffusivity: 0.5,
-        specularity: 1.0,
-        smoothness: 40.0
+function createCustomBlock(type, x, y, z) {
+    const group = new THREE.Group();
+
+    const blockGeometry = new THREE.BoxGeometry(blockHeight, blockHeight, blockHeight); // Each small block
+    const material = new THREE.MeshPhongMaterial({
+        color: new THREE.Color(Math.random(), Math.random(), Math.random())
     });
-    const block = new THREE.Mesh(geometry, material);
-    block.position.set(x, y, z);
-    scene.add(block);
-    stack.push(block);
+
+    const addCube = (gx, gy, gz) => {
+        const cube = new THREE.Mesh(blockGeometry, material);
+        cube.position.set(gx, gy, gz);
+        group.add(cube);
+    };
+
+    switch (type) {
+        case "T":
+            addCube(0, 0, 0);  // Center
+            addCube(-4, 0, 0); // Left
+            addCube(4, 0, 0);  // Right
+            addCube(0, 4, 0);  // Top
+            break;
+        case "L":
+            addCube(0, 0, 0);  // Base
+            addCube(0, 4, 0);  // Middle
+            addCube(0, 8, 0);  // Top
+            addCube(4, 0, 0);  // Bottom side
+            break;
+        case "Line":
+            addCube(0, 0, 0);
+            addCube(0, 4, 0);
+            addCube(0, 8, 0);
+            addCube(0, 12, 0);
+            break;
+        default:
+            console.error("Unknown block type");
+    }
+
+    group.position.set(x, y, z);
+    scene.add(group);
+    stack.push(group);
 }
 
 function addBlock() {
     const lastBlock = stack[stack.length - 1];
-    createBlock(
-        lastBlock.position.x,
-        lastBlock.position.y + blockHeight,
-        lastBlock.position.z
-    );
+    const types = ["T", "L", "Line"];
+    const randomType = types[Math.floor(Math.random() * types.length)]; // Pick a random block type
+    
+    // Calculate the highest point in the stack
+    let maxHeight = 0;
+    stack.forEach(blockGroup => {
+        blockGroup.children.forEach(block => {
+            maxHeight = Math.max(maxHeight, block.position.y + blockGroup.position.y);
+        });
+    });
+    
+    const newHeight = maxHeight + blockHeight;
 
-    currentHeight += blockHeight;
-    camera.position.y = currentHeight + 10;
-    camera.lookAt(-20, currentHeight-20, -30);
+    createCustomBlock(
+        randomType,
+        0,
+        newHeight,
+        0
+    );
+    // createBlock(
+    //     lastBlock.position.x,
+    //     lastBlock.position.y + blockHeight,
+    //     lastBlock.position.z
+    // );
+
+    currentHeight = maxHeight;
+    adjustCameraPosition();
 }
+
+function adjustCameraPosition() {
+    // Target camera height: slightly above the current tallest block
+    const targetHeight = currentHeight + 10;
+
+    // Smooth transition to the target height
+    camera.position.set(camera.position.x, targetHeight, camera.position.z);
+    
+    // Update the camera's look-at point
+    camera.lookAt(0, currentHeight, 0);
+}
+
 
 // Update block position and check alignment
 function update() {
     if (stack.length > 1) {
         const currentBlock = stack[stack.length - 1];
-        currentPosition += movingDirection * speed;
-        currentBlock.position.x = currentPosition;
 
-        if (currentPosition >= 25 || currentPosition <= -25) {
-            // Reverse direction when reaching boundary
-            movingDirection *= -1; 
+        if (currentBlock instanceof THREE.Group) {
+            currentPosition += movingDirection * speed;
+            currentBlock.position.x = currentPosition;
+
+            if (currentPosition >= 25 || currentPosition <= -25) {
+                // Reverse direction when reaching boundary
+                movingDirection *= -1; 
+            }
         }
+
+
+        
     }
 }
 
@@ -82,23 +147,46 @@ window.addEventListener('keydown', (event) => {
         const currentBlock = stack[stack.length - 1];
         const previousBlock = stack[stack.length - 2];
 
-        // Check alignment with the previous block
-        const overlap = previousBlock ? currentBlock.position.x - previousBlock.position.x : 0;
-        
+        if (previousBlock) {
+            let isValidPlacement = false;
 
-        if (Math.abs(overlap) <= blockSizeX) {
+            // Iterate through all blocks in both groups
+            previousBlock.children.forEach(prevChild => {
+                currentBlock.children.forEach(currChild => {
+                    const prevX = prevChild.position.x + previousBlock.position.x;
+                    const prevZ = prevChild.position.z + previousBlock.position.z;
 
-            addBlock(); // Add new block if aligned
-            checkBalance();   
-            currentPosition = -15; // Reset position for next block
-            
+                    const currX = currChild.position.x + currentBlock.position.x;
+                    const currZ = currChild.position.z + currentBlock.position.z;
 
+                    // Check if the current block is directly above the previous block
+                    if (Math.abs(currX - prevX) <= blockHeight && 
+                        Math.abs(currZ - prevZ) <= blockHeight) {
+                        isValidPlacement = true;
+                    } else {
+                        console.log("Invalid placement.");
+                        console.log(currX, prevX, currZ, prevZ);
+                    }
+                });
+            });
+
+            // Validate placement
+            if (isValidPlacement) {
+                addBlock(); // Place the next tile
+                currentPosition = -15; // Reset position for the next block
+            } else {
+                console.log("Game Over! No block beneath.");
+                showGameOver();
+            }
         } else {
-            console.log("Game Over!");
-            showGameOver();
+            // First block placement is always valid
+            addBlock();
+            currentPosition = -15;
         }
     }
 });
+
+
 
 function checkBalance() {
     let totalX = 0;
@@ -133,6 +221,7 @@ animate();
 function animate() {
     requestAnimationFrame(animate);
     update();
+    adjustCameraPosition();
     renderer.render(scene, camera);
 }
 
