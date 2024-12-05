@@ -32,7 +32,7 @@ let blockSizeZ = 10;
 const blockHeight = 2;
 let currentPosition = 10;
 let movingDirection = 1;
-const speed = 0.10;
+let speed = 0.10;
 let currentHeight = 0;
 let moveInX = false;
 const fallSpeed = 0.1; // May change to gravitational velocity function
@@ -315,6 +315,7 @@ export function cleanupGame1() {
         scene.remove(block);
     });
     stack = [];
+    
 
     physicsBodies.forEach(({ mesh, body }) => {
         if (mesh) {
@@ -379,6 +380,7 @@ function completeReset() {
     currentHeight = 0;
     moveInX = false;
     score = 0;
+    speed = 0.10;
     document.getElementById('score').innerText = `${score}`;
 
     currentColor = new THREE.Color(Math.random(), Math.random(), Math.random());
@@ -503,6 +505,7 @@ function addBlock() {
     moveInX = !moveInX;
 
     score++;
+    speed += 0.005;
     document.getElementById('score').innerText = `${score}`;
 }
 
@@ -772,4 +775,4 @@ window.addEventListener('resize', () => {
     camera.bottom = frustumSize / -2;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
-  });
+});
