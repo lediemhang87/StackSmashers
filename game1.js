@@ -28,7 +28,7 @@ let currentHeight = 0;
 let moveInX = false;
 const fallSpeed = 0.1; // May change to gravitational velocity function
 let score = 0;
-
+const placeTolerancePercent = speed/(2.5) // PERCENT TOLERANCE for placing block (0.10 speed --> 4% tolerance)
 
 let cameraState = 'gameplay'; // Can be 'gameplay', 'gameover', etc.
 camera.position.set(15, 15, 15);
@@ -185,7 +185,7 @@ function createMovingCloudWithTexture(texturePath, startDirection = "left") {
 
     // Set initial position based on the direction
     const startX = startDirection === "left" ? -50 : 50; // Start off-screen
-    const startY = Math.random() * (30 - 0) + 0 + currentHeight; // max 30 + height, min is height
+    const startY = Math.random() * (30 - 0) + 10 + currentHeight; // max 30 + height, min is height
     const startZ = 10; // Random depth
     cloud.position.set(startX, startY, startZ);
     // Set cloud size
@@ -196,7 +196,7 @@ function createMovingCloudWithTexture(texturePath, startDirection = "left") {
     // Add the cloud to the scene
     scene.add(cloud);
     // Set cloud speed
-    const cloudSpeed = Math.random() * 0.5 + 0.2; // Random speed
+    const cloudSpeed = Math.random() * speed + 0.05; // Random speed (0.05 to avoid freezing)
 
     // Animate the cloud
     function animateCloud() {
@@ -501,7 +501,7 @@ window.addEventListener('keydown', (event) => {
     if (event.code === 'Space') {
         const currentBlock = stack[stack.length - 1];
         const previousBlock = stack[stack.length - 2];
-
+        
         // Check alignment with the previous block
         // If previousBlock is not null or undefined, it calculates the overlap by finding the difference between currentBlock and previousBlock positions.
         // If previousBlock is null or undefined (i.e., this is the first block), it returns 0, as there’s no overlap to calculate.
@@ -511,52 +511,64 @@ window.addEventListener('keydown', (event) => {
         const maxBlockSize = moveInX ? blockSizeX : blockSizeZ;
 
         if (Math.abs(overlap) <= maxBlockSize) {
+            // if within 'closeenough' 
+            
             if (Math.abs(overlap) > 0) {
-                let fallBlockSizeX = blockSizeX; // Grab before chop-off value for X
-                let fallBlockSizeZ = blockSizeZ; // Grab before chop-off value for Y
-
-                if (moveInX) {
-                    blockSizeX -= Math.abs(overlap);
-                    fallBlockSizeX = maxBlockSize - blockSizeX;
+                if ((Math.abs(overlap)/maxBlockSize <= placeTolerancePercent) && (previousBlock)) {
+                    if (moveInX) {
+                        currentBlock.position.x = previousBlock.position.x;
+                      } else { // if moves in Z
+                        currentBlock.position.z = previousBlock.position.z;
+                      }
                 } else {
-                    blockSizeZ -= Math.abs(overlap);
-                    fallBlockSizeZ= maxBlockSize - blockSizeZ;
+                    let fallBlockSizeX = blockSizeX; // Grab before chop-off value for X
+                    let fallBlockSizeZ = blockSizeZ; // Grab before chop-off value for Y
+
+                    if (moveInX) {
+                        blockSizeX -= Math.abs(overlap);
+                        fallBlockSizeX = maxBlockSize - blockSizeX;
+                    } else {
+                        blockSizeZ -= Math.abs(overlap);
+                        fallBlockSizeZ= maxBlockSize - blockSizeZ;
+                    }
+
+                    scene.remove(currentBlock);
+                    let geometry = new THREE.BoxGeometry(blockSizeX, blockHeight, blockSizeZ);
+                    let newBlock = new THREE.Mesh(geometry, currentBlock.material);
+
+                    if (moveInX) {
+                        newBlock.position.set(
+                            previousBlock.position.x + (currentBlock.position.x - previousBlock.position.x) / 2,
+                            currentBlock.position.y,
+                            currentBlock.position.z
+                        );
+                    } else {
+                        newBlock.position.set(
+                            currentBlock.position.x,
+                            currentBlock.position.y,
+                            previousBlock.position.z + (currentBlock.position.z - previousBlock.position.z) / 2
+                        );
+                    }
+
+                    scene.add(newBlock);
+                    stack[stack.length - 1] = newBlock; // Update current block in stack
+                    
+                    // calculate falling block position based on overlap
+                    if (moveInX){
+                        const fallingBlockX = overlap > 0 
+                        ? newBlock.position.x + blockSizeX / 2 + Math.abs(overlap) / 2 
+                        : newBlock.position.x - blockSizeX / 2 - Math.abs(overlap) / 2;
+                        createFallingBlock(fallingBlockX, newBlock.position.y, newBlock.position.z, fallBlockSizeX, fallBlockSizeZ);
+                    } else {
+                        const fallingBlockZ = overlap > 0 
+                        ? newBlock.position.z + blockSizeZ / 2 + Math.abs(overlap) / 2 
+                        : newBlock.position.z - blockSizeZ / 2 - Math.abs(overlap) / 2;
+
+                        createFallingBlock(newBlock.position.x, newBlock.position.y, fallingBlockZ, fallBlockSizeX, fallBlockSizeZ);
+                    }
                 }
-
-                scene.remove(currentBlock);
-                let geometry = new THREE.BoxGeometry(blockSizeX, blockHeight, blockSizeZ);
-                let newBlock = new THREE.Mesh(geometry, currentBlock.material);
-
-                if (moveInX) {
-                    newBlock.position.set(
-                        previousBlock.position.x + (currentBlock.position.x - previousBlock.position.x) / 2,
-                        currentBlock.position.y,
-                        currentBlock.position.z
-                    );
-                } else {
-                    newBlock.position.set(
-                        currentBlock.position.x,
-                        currentBlock.position.y,
-                        previousBlock.position.z + (currentBlock.position.z - previousBlock.position.z) / 2
-                    );
-                }
-
-                scene.add(newBlock);
-                stack[stack.length - 1] = newBlock; // Update current block in stack
                 
-                // calculate falling block position based on overlap
-                if (moveInX){
-                    const fallingBlockX = overlap > 0 
-                    ? newBlock.position.x + blockSizeX / 2 + Math.abs(overlap) / 2 
-                    : newBlock.position.x - blockSizeX / 2 - Math.abs(overlap) / 2;
-                    createFallingBlock(fallingBlockX, newBlock.position.y, newBlock.position.z, fallBlockSizeX, fallBlockSizeZ);
-                } else {
-                    const fallingBlockZ = overlap > 0 
-                    ? newBlock.position.z + blockSizeZ / 2 + Math.abs(overlap) / 2 
-                    : newBlock.position.z - blockSizeZ / 2 - Math.abs(overlap) / 2;
-
-                    createFallingBlock(newBlock.position.x, newBlock.position.y, fallingBlockZ, fallBlockSizeX, fallBlockSizeZ);
-                }
+                
             }
             if (stack.length > 1) { // Ignore base block
                 playPlaceSound(); 
