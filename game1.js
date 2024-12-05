@@ -2,8 +2,6 @@ import * as THREE from 'three';
 import { showGameOver } from './index.js';
 import * as CANNON from 'cannon-es';
 
-
-
 const world = new CANNON.World();
 world.gravity.set(0, -1, 0); // Gravity pointing down
 world.broadphase = new CANNON.NaiveBroadphase();
@@ -22,8 +20,10 @@ const camera = new THREE.OrthographicCamera(
   1000
 );
 
-const renderer = new THREE.WebGLRenderer({antialias: true});
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
 let stack = [];
@@ -35,7 +35,6 @@ let movingDirection = 1;
 let speed = 0.10;
 let currentHeight = 0;
 let moveInX = false;
-const fallSpeed = 0.1; // May change to gravitational velocity function
 let score = 0;
 const minTolerance = 0.04; // 5% minimum tolerance
 const maxTolerance = 0.40; // 20% maximum tolerance
@@ -59,6 +58,15 @@ scene.add(ambientLight);
 const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
 directionalLight.name = 'directionalLight';
 directionalLight.position.set(5, 10, 5);
+directionalLight.castShadow = true;
+directionalLight.shadow.mapSize.width = 1024;
+directionalLight.shadow.mapSize.height = 1024;
+directionalLight.shadow.camera.near = 0.5;
+directionalLight.shadow.camera.far = 50;
+directionalLight.shadow.camera.left = -20;
+directionalLight.shadow.camera.right = 20;
+directionalLight.shadow.camera.top = 20;
+directionalLight.shadow.camera.bottom = -20;
 scene.add(directionalLight);
 
 // Add the base block
@@ -110,7 +118,7 @@ function playPerfectSound() {
 }
 
 //background setup
-function createVerticalGradientTexture(baseColor) {
+function createVerticalGradientTexture(baseColor, upperColor) {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
     canvas.width = window.innerWidth;
@@ -118,7 +126,7 @@ function createVerticalGradientTexture(baseColor) {
 
     // Create gradient from base color to grey
     const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, '#000080'); // Bottom color (current block color)
+    gradient.addColorStop(0, upperColor); // Bottom color (current block color)
     gradient.addColorStop(1,  baseColor.getStyle()); // Top color (grey)
 
     context.fillStyle = gradient;
@@ -134,7 +142,6 @@ function getRandomColorExcludingNavyBlue() {
         // Generate a random color
         color = new THREE.Color(Math.random(), Math.random(), Math.random());
     } while (isCloseToNavyBlue(color));  // Keep trying until it's not navy blue
-
     return color;
 }
 function isCloseToNavyBlue(color) {
@@ -143,14 +150,15 @@ function isCloseToNavyBlue(color) {
     return rgbDistance(color, navyBlue) < 0.1; // Threshold for "closeness"
 }
 
+
 function createGround() {
 
     // Create PlaneGeometry with subdivisions for vertex manipulation
 
     const groundWidth = 50;
     const groundHeight = 50;
-    const widthSegments = 50; // Increase for more detailed bumps
-    const heightSegments = 50;
+    const widthSegments = 500; // Increase for more detailed bumps
+    const heightSegments = 500;
     const groundGeometry = new THREE.PlaneGeometry(groundWidth, groundHeight, widthSegments, heightSegments);
 
     // Manipulate vertices to create bumps
@@ -169,13 +177,14 @@ function createGround() {
     // Create a material for the ground
     const groundMaterial = new THREE.MeshStandardMaterial({
         color: 0x557d5c, // A greenish color
-        roughness: 0.1,
+        roughness: 1,
         metalness: 0,
     });
 
     // Create a mesh for the ground
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2; // Rotate to make it horizontal
+    ground.receiveShadow = true; // Enable shadow receiving
     scene.add(ground);
 
     // Create the physics representation as a flat plane
@@ -411,6 +420,8 @@ function createFallingBlock(x, y, z, fallBlockSizeX, fallBlockSizeZ) {
     const material = new THREE.MeshPhongMaterial({ color: prevBlockColor });
     const block = new THREE.Mesh(geometry, material);
     block.position.set(x, y, z);
+    block.castShadow = true;
+    block.receiveShadow = true;
     scene.add(block);
 
     // Create the physics body
@@ -431,11 +442,18 @@ function createFallingBlock(x, y, z, fallBlockSizeX, fallBlockSizeZ) {
 }
 
 
+
 function createBlock(x, y, z) {
     const geometry = new THREE.BoxGeometry(blockSizeX, blockHeight, blockSizeZ);
 
     // Interpolate current color toward the target color using lerp
+
     currentColor.lerp(targetColor, lerpFactor);
+
+
+    let upperColor = '#000080';
+
+     
 
     // Create the material with the updated current color
     let material = new THREE.MeshPhongMaterial({
@@ -446,20 +464,23 @@ function createBlock(x, y, z) {
 
     const block = new THREE.Mesh(geometry, material);
     block.position.set(x, y, z);
+    block.castShadow = true;
+    block.receiveShadow = true;
     scene.add(block);
     stack.push(block);
 
 
     // Update the background color to match the current block color
     // Update the background color to match the current block color
-    const gradientTexture = createVerticalGradientTexture(currentColor);
+    // currentColor =  new THREE.Color(0, 0, 0);
+    let gradientTexture = createVerticalGradientTexture(currentColor, upperColor);
+
     scene.background = gradientTexture.clone();
-   
+       
     const colorDifference = rgbDistance(currentColor,targetColor);
 
     // This threshold is the color difference of the prev color and current color
     const colorThreshold = 0.3; // Adjust this threshold as needed.
-
     if (colorDifference < colorThreshold) {
         targetColor = new THREE.Color(Math.random(), Math.random(), Math.random()); // New random color
     }
@@ -585,7 +606,7 @@ window.addEventListener('keydown', (event) => {
                             previousBlock.position.z + (currentBlock.position.z - previousBlock.position.z) / 2
                         );
                     }
-
+                  
                     scene.add(newBlock);
                     stack[stack.length - 1] = newBlock; // Update current block in stack
                     
