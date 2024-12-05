@@ -5,13 +5,22 @@ import * as CANNON from 'cannon-es';
 
 
 const world = new CANNON.World();
-world.gravity.set(0, -9.82, 0); // Gravity pointing down
+world.gravity.set(0, -1, 0); // Gravity pointing down
 world.broadphase = new CANNON.NaiveBroadphase();
 world.solver.iterations = 10;
 let physicsBodies = [];
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-
+//const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const aspect = window.innerWidth / window.innerHeight;
+const frustumSize = 30;
+const camera = new THREE.OrthographicCamera(
+  frustumSize * aspect / -2,
+  frustumSize * aspect / 2,
+  frustumSize / 2,
+  frustumSize / -2,
+  0.1,
+  1000
+);
 
 const renderer = new THREE.WebGLRenderer({antialias: true});
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -205,7 +214,7 @@ function createMovingCloudWithTexture(texturePath, startDirection = "left") {
 
     // Set initial position based on the direction
     const startX = startDirection === "left" ? -50 : 50; // Start off-screen
-    const startY = Math.random() * (30 - 0) + 10 + currentHeight; // max 30 + height, min is height
+    const startY = Math.random() * (10 - 0) + -10 + currentHeight; // max 30 + height, min is height
     const startZ = 10; // Random depth
     cloud.position.set(startX, startY, startZ);
     // Set cloud size
@@ -621,24 +630,24 @@ window.addEventListener('keydown', (event) => {
             function animateCameraTransition() {
                 const elapsedTime = Date.now() - transitionStartTime;
                 const progress = Math.min(elapsedTime / transitionDuration, 1);
-
-                // Smooth easing function for the progress
                 const easedProgress = progress * progress * (3 - 2 * progress);
-
-                // Interpolate the camera's position and look-at target
-                camera.position.lerpVectors(initialCameraPosition, targetCameraPosition, easedProgress);
+              
+                const towerHeight = currentHeight + blockHeight;
+                const targetPosition = new THREE.Vector3(0, towerHeight / 2, towerHeight * 1.5);
+                const targetLookAt = new THREE.Vector3(0, towerHeight / 2, 0);
+              
+                camera.position.lerpVectors(initialCameraPosition, targetPosition, easedProgress);
                 camera.lookAt(new THREE.Vector3().lerpVectors(initialLookAt, targetLookAt, easedProgress));
-
-                // Continue animation if still in progress
+                camera.updateProjectionMatrix();
+              
                 if (progress < 1) {
-                    requestAnimationFrame(animateCameraTransition);
+                  requestAnimationFrame(animateCameraTransition);
                 } else {
-                    // Once the camera has reached the final position, delay the game over screen
-                    setTimeout(() => {
-                        showGameOver();
-                    }, 500); // Adjust the delay if needed
+                  setTimeout(() => {
+                    showGameOver();
+                  }, 500);
                 }
-            }
+              }
 
             animateCameraTransition(); // Start the animation
         }
@@ -756,7 +765,11 @@ function animate() {
 }
 
 window.addEventListener('resize', () => {
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    camera.aspect = window.innerWidth / window.innerHeight;
+    const aspect = window.innerWidth / window.innerHeight;
+    camera.left = frustumSize * aspect / -2;
+    camera.right = frustumSize * aspect / 2;
+    camera.top = frustumSize / 2;
+    camera.bottom = frustumSize / -2;
     camera.updateProjectionMatrix();
-});
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
