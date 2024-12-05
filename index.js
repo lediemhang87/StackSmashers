@@ -4,7 +4,7 @@ const gameOverOverlay = document.getElementById('gameOverOverlay');
 const startButton = document.getElementById('startButton');
 const restartButton = document.getElementById('restartButton');
 const restartLevelButton = document.getElementById('restartLevelButton');
-import { resetGame } from './game1.js';
+import { initAudio, resetGame } from './game1.js';
 
 
 // Start the game when clicking the Start button
@@ -15,7 +15,7 @@ startButton1.addEventListener('click', async () => {
     score.style.visibility = 'visible';
 
     await import('./game1.js');
-
+    initAudio();
     // Hide loading screen and start the game
     awaitingOverlay.style.visibility = 'hidden';
 });

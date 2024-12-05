@@ -23,7 +23,7 @@ let blockSizeZ = 10;
 const blockHeight = 2;
 let currentPosition = 10;
 let movingDirection = 1;
-const speed = 0.20;
+const speed = 0.10;
 let currentHeight = 0;
 let moveInX = false;
 const fallSpeed = 0.1; // May change to gravitational velocity function
@@ -51,9 +51,34 @@ directionalLight.name = 'directionalLight';
 directionalLight.position.set(5, 10, 5);
 scene.add(directionalLight);
 
-
 // Add the base block
 createBlock(0, 0, 0); 
+
+let audioContext;
+let placeSound;
+export function initAudio() {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    fetch('assets/plomp.mp3')
+      .then(response => response.arrayBuffer())
+      .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+      .then(audioBuffer => {
+        placeSound = audioBuffer;
+      });
+}
+
+function playPlaceSound() {
+    if (placeSound && audioContext) {
+        const source = audioContext.createBufferSource();
+        const gainNode = audioContext.createGain();
+        
+        source.buffer = placeSound;
+        gainNode.gain.value = 0.1; // Adjust this value to control volume (0 to 1)
+        
+        source.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        source.start();
+      }
+  }
 
 //background setup
 function createVerticalGradientTexture(baseColor) {
@@ -533,7 +558,9 @@ window.addEventListener('keydown', (event) => {
                     createFallingBlock(newBlock.position.x, newBlock.position.y, fallingBlockZ, fallBlockSizeX, fallBlockSizeZ);
                 }
             }
-
+            if (stack.length > 1) { // Ignore base block
+                playPlaceSound(); 
+            }
             addBlock(); // Add new block if aligned
             currentPosition = -15; // Reset position for next block
         } else {
@@ -582,8 +609,6 @@ let cameraAngle = Math.PI / 4; // Initial angle (45 degrees)
 const cameraRadius = 20; // Fixed radius for the circular path
 const cameraSpeed = 0.05; // Speed of rotation
 let targetAngle = cameraAngle;
-
-
 
 window.addEventListener('keydown', (event) => {
     if (event.code === 'ArrowRight') {
