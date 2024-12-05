@@ -28,7 +28,8 @@ let currentHeight = 0;
 let moveInX = false;
 const fallSpeed = 0.1; // May change to gravitational velocity function
 let score = 0;
-const placeTolerancePercent = speed/(2.5) // PERCENT TOLERANCE for placing block (0.10 speed --> 4% tolerance)
+const minTolerance = 0.04; // 5% minimum tolerance
+const maxTolerance = 0.40; // 20% maximum tolerance
 
 let cameraState = 'gameplay'; // Can be 'gameplay', 'gameover', etc.
 camera.position.set(15, 15, 15);
@@ -59,13 +60,20 @@ let placeSound;
 export function initAudio() {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
     fetch('assets/plomp.mp3')
-      .then(response => response.arrayBuffer())
-      .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
-      .then(audioBuffer => {
+    .then(response => response.arrayBuffer())
+    .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+    .then(audioBuffer => {
         placeSound = audioBuffer;
-      });
+    });
+    
+    fetch('assets/wood-place.mp3') // zap-woosh vs. zap-crash vs click (wavs) VS wood-place.mp3
+    .then(response => response.arrayBuffer())
+    .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+    .then(audioBuffer => {
+        zapSound = audioBuffer;
+    });
 }
-
+let zapSound;
 function playPlaceSound() {
     if (placeSound && audioContext) {
         const source = audioContext.createBufferSource();
@@ -79,6 +87,18 @@ function playPlaceSound() {
         source.start();
       }
   }
+function playZapSound() {
+    if (zapSound && audioContext) {
+        const source = audioContext.createBufferSource();
+        const gainNode = audioContext.createGain();
+        source.buffer = zapSound;
+        source.playbackRate.value = 2;
+        gainNode.gain.value = 0.7; // Adjust this value to control volume (0 to 1)
+        source.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        source.start();
+    }
+}
 
 //background setup
 function createVerticalGradientTexture(baseColor) {
@@ -509,17 +529,21 @@ window.addEventListener('keydown', (event) => {
                                 : previousBlock ? currentBlock.position.z - previousBlock.position.z : 0;
 
         const maxBlockSize = moveInX ? blockSizeX : blockSizeZ;
-
+        const originalSize = 10; // original X and Z size (at beginning)
+        const tolerancePercent = calculateTolerance(maxBlockSize, originalSize);
+        let placedExact = false;
         if (Math.abs(overlap) <= maxBlockSize) {
             // if within 'closeenough' 
             
             if (Math.abs(overlap) > 0) {
-                if ((Math.abs(overlap)/maxBlockSize <= placeTolerancePercent) && (previousBlock)) {
+                if ((Math.abs(overlap)/maxBlockSize <= tolerancePercent) && (previousBlock)) {
                     if (moveInX) {
                         currentBlock.position.x = previousBlock.position.x;
                       } else { // if moves in Z
                         currentBlock.position.z = previousBlock.position.z;
                       }
+                      createRippleEffect(currentBlock.position.x, currentBlock.position.z, currentHeight, blockSizeX, blockSizeZ);
+                      placedExact = true;
                 } else {
                     let fallBlockSizeX = blockSizeX; // Grab before chop-off value for X
                     let fallBlockSizeZ = blockSizeZ; // Grab before chop-off value for Y
@@ -571,7 +595,11 @@ window.addEventListener('keydown', (event) => {
                 
             }
             if (stack.length > 1) { // Ignore base block
-                playPlaceSound(); 
+                if (placedExact) {
+                    playZapSound();
+                } else {
+                    playPlaceSound(); 
+                }
             }
             addBlock(); // Add new block if aligned
             currentPosition = -15; // Reset position for next block
@@ -616,6 +644,70 @@ window.addEventListener('keydown', (event) => {
         }
     }
 });
+function calculateTolerance(currentSize, originalSize) {
+    // const minTolerance = 0.05; // 5% minimum tolerance
+    // const maxTolerance = 0.40; // 20% maximum tolerance
+    const sizeFactor = currentSize / originalSize;
+    
+    // Exponential increase in tolerance as size decreases
+    const tolerance = minTolerance + (maxTolerance - minTolerance) * Math.pow(1 - sizeFactor, 3);
+    
+    return Math.min(maxTolerance, Math.max(minTolerance, tolerance));
+}
+
+function createRippleEffect(x, z, currentHeight, blockSizeX, blockSizeZ) {
+    const edgeThickness = 0.1;
+    const rippleDuration = 500; // milliseconds
+    const maxRippleSize = 0.4; // Maximum expansion size
+  
+    const rippleMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.4,
+      side: THREE.DoubleSide,
+    });
+  
+    // Create outer square
+    const outerGeometry = new THREE.BoxGeometry(blockSizeX + edgeThickness * 2, edgeThickness, blockSizeZ + edgeThickness * 2);
+    const outerEdge = new THREE.Mesh(outerGeometry, rippleMaterial.clone());
+    outerEdge.position.set(x, currentHeight + edgeThickness / 2, z);
+    scene.add(outerEdge);
+  
+    // Create inner square
+    const innerGeometry = new THREE.BoxGeometry(blockSizeX - edgeThickness * 2, edgeThickness, blockSizeZ - edgeThickness * 2);
+    const innerEdge = new THREE.Mesh(innerGeometry, rippleMaterial.clone());
+    innerEdge.position.set(x, currentHeight + edgeThickness / 2, z);
+    scene.add(innerEdge);
+  
+    const startTime = Date.now();
+  
+    function animateRipple() {
+      const elapsedTime = Date.now() - startTime;
+      const progress = Math.min(elapsedTime / rippleDuration, 1);
+      const size = 1 + progress * maxRippleSize;
+  
+      // Scale and fade outer square
+      outerEdge.scale.set(size, 1, size);
+      outerEdge.material.opacity = 0.8 * (1 - progress);
+  
+      // Scale and fade inner square
+      innerEdge.scale.set(size, 1, size);
+      innerEdge.material.opacity = 0.8 * (1 - progress);
+  
+      if (progress < 1) {
+        requestAnimationFrame(animateRipple);
+      } else {
+        scene.remove(outerEdge);
+        scene.remove(innerEdge);
+        outerEdge.geometry.dispose();
+        outerEdge.material.dispose();
+        innerEdge.geometry.dispose();
+        innerEdge.material.dispose();
+      }
+    }
+  
+    animateRipple();
+  }
 
 let cameraAngle = Math.PI / 4; // Initial angle (45 degrees)
 const cameraRadius = 20; // Fixed radius for the circular path
