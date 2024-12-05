@@ -526,10 +526,20 @@ function addBlock() {
     moveInX = !moveInX;
 
     score++;
-    speed += 0.005;
+    //speed += 0.005;
+    speed = calculateSpeed(score);
     document.getElementById('score').innerText = `${score}`;
 }
-
+function calculateSpeed(currentScore) {
+    const base = 0.10;
+    const step = 0.005;
+    const breakpoint = 40;
+    if (currentScore <= breakpoint) {
+        return base + step * (2 * currentScore - (currentScore ** 2) / breakpoint);
+    } else {
+        return base + step * (breakpoint + 2 * Math.sqrt(currentScore - breakpoint));
+    }
+}
 // Update block position and check alignment
 function update() {
     if (stack.length > 1) {
