@@ -70,10 +70,10 @@ export function initAudio() {
     .then(response => response.arrayBuffer())
     .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
     .then(audioBuffer => {
-        zapSound = audioBuffer;
+        perfectSound = audioBuffer;
     });
 }
-let zapSound;
+let perfectSound;
 function playPlaceSound() {
     if (placeSound && audioContext) {
         const source = audioContext.createBufferSource();
@@ -87,11 +87,11 @@ function playPlaceSound() {
         source.start();
       }
   }
-function playZapSound() {
-    if (zapSound && audioContext) {
+function playPerfectSound() {
+    if (perfectSound && audioContext) {
         const source = audioContext.createBufferSource();
         const gainNode = audioContext.createGain();
-        source.buffer = zapSound;
+        source.buffer = perfectSound;
         source.playbackRate.value = 2;
         gainNode.gain.value = 0.7; // Adjust this value to control volume (0 to 1)
         source.connect(gainNode);
@@ -596,7 +596,7 @@ window.addEventListener('keydown', (event) => {
             }
             if (stack.length > 1) { // Ignore base block
                 if (placedExact) {
-                    playZapSound();
+                    playPerfectSound();
                 } else {
                     playPlaceSound(); 
                 }
