@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { showGameOver } from './index.js';
 import * as CANNON from 'cannon-es';
+import CannonDebugger from 'cannon-es-debugger';
 
 const world = new CANNON.World();
 world.gravity.set(0, -9.82, 0); // Gravity pointing down
@@ -74,8 +75,8 @@ directionalLight.shadow.camera.left = -5*d;
 directionalLight.shadow.camera.right = 5*d;
 directionalLight.shadow.camera.top = 5*d;
 directionalLight.shadow.camera.bottom = -5*d;
-directionalLight.shadow.mapSize.width = 8192;
-directionalLight.shadow.mapSize.height = 8192;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
 directionalLight.shadow.radius = 4;
 scene.add(directionalLight);
 
@@ -86,7 +87,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1;
 directionalLight.castShadow = true;
 directionalLight.shadow.normalBias = 0.02;
-directionalLight.shadow.bias = -0.0005;
+directionalLight.shadow.bias = -0.001;
 // Add the base block
 createBlock(0, 0, 0); 
 
@@ -463,15 +464,10 @@ function createFallingBlock(x, y, z, fallBlockSizeX, fallBlockSizeZ) {
 
 function createBlock(x, y, z) {
     const geometry = new THREE.BoxGeometry(blockSizeX, blockHeight, blockSizeZ);
-
     // Interpolate current color toward the target color using lerp
-
     currentColor.lerp(targetColor, lerpFactor);
 
-
     let upperColor = '#000080';
-
-     
 
     // Create the material with the updated current color
     let material = new THREE.MeshPhongMaterial({
@@ -488,14 +484,10 @@ function createBlock(x, y, z) {
     scene.add(block);
     stack.push(block);
 
-
-    // Update the background color to match the current block color
     // Update the background color to match the current block color
     // currentColor =  new THREE.Color(0, 0, 0);
     let gradientTexture = createVerticalGradientTexture(currentColor, upperColor);
-
     scene.background = gradientTexture.clone();
-       
     const colorDifference = rgbDistance(currentColor,targetColor);
 
     // This threshold is the color difference of the prev color and current color
@@ -504,12 +496,16 @@ function createBlock(x, y, z) {
         targetColor = new THREE.Color(Math.random(), Math.random(), Math.random()); // New random color
     }
     
+    const blockMaterial = new CANNON.Material('block');
+    blockMaterial.friction = 0.5;
+    blockMaterial.restitution = 0.001;
     // Add physics body for the block
     const shape = new CANNON.Box(new CANNON.Vec3(blockSizeX / 2, blockHeight / 2, blockSizeZ / 2));
     const body = new CANNON.Body({
         mass: stack.length === 1 ? 0 : 1, // Base block is static
         position: new CANNON.Vec3(x, y, z),
         shape: shape,
+        material: blockMaterial
     });
 
     world.addBody(body);
@@ -531,7 +527,7 @@ function addBlock() {
         lastBlock.position.y + blockHeight,
         lastBlock.position.z
     );
-
+    
     if (stack.length > 2) {
 
         currentHeight += blockHeight;
@@ -798,8 +794,10 @@ function animateCamera() {
     }
     requestAnimationFrame(animateCamera);
 }
+const cannonDebugger = new CannonDebugger(scene, world);
 animateCamera();
 animate();
+
 
 function animate() {
     requestAnimationFrame(animate);
@@ -812,7 +810,7 @@ function animate() {
             item.mesh.quaternion.copy(item.body.quaternion);
         }
     });
-
+    cannonDebugger.update();
     update();
     renderer.render(scene, camera);
 }
