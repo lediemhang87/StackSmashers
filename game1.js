@@ -24,6 +24,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
 document.body.appendChild(renderer.domElement);
 
 let stack = [];
@@ -73,8 +74,9 @@ directionalLight.shadow.camera.left = -5*d;
 directionalLight.shadow.camera.right = 5*d;
 directionalLight.shadow.camera.top = 5*d;
 directionalLight.shadow.camera.bottom = -5*d;
-directionalLight.shadow.mapSize.width = 2048;
-directionalLight.shadow.mapSize.height = 2048;
+directionalLight.shadow.mapSize.width = 8192;
+directionalLight.shadow.mapSize.height = 8192;
+directionalLight.shadow.radius = 4;
 scene.add(directionalLight);
 
 const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.3);
@@ -83,7 +85,8 @@ renderer.physicallyCorrectLights = true;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1;
 directionalLight.castShadow = true;
-directionalLight.shadow.bias = -0.001;
+directionalLight.shadow.normalBias = 0.02;
+directionalLight.shadow.bias = -0.0005;
 // Add the base block
 createBlock(0, 0, 0); 
 
@@ -474,7 +477,8 @@ function createBlock(x, y, z) {
     let material = new THREE.MeshPhongMaterial({
         color: currentColor, // Directly use currentColor
         specular: 0x555555,
-        shininess: 40
+        shininess: 40,
+        roughness: 0.7
     });
 
     const block = new THREE.Mesh(geometry, material);
