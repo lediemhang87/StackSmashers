@@ -278,6 +278,29 @@ setInterval(() => {
     createMovingCloudWithTexture('assets/cloud2.png', "left"); // Replace with your PNG path
 }, 7000);
 
+function clearPhysicsBodies() {
+    while (world.bodies.length > 0) {
+        world.removeBody(world.bodies[0]); // Remove all bodies from the physics world
+    }
+    physicsBodies = []; // Clear the array tracking the bodies
+}
+
+function disposePhysicsObjects() {
+    physicsBodies.forEach(({ mesh, body }) => {
+        // Remove mesh from scene
+        if (mesh) {
+            scene.remove(mesh);
+            if (mesh.geometry) mesh.geometry.dispose();
+            if (mesh.material) mesh.material.dispose();
+        }
+
+        // Remove body from world
+        if (body) {
+            world.removeBody(body);
+        }
+    });
+    physicsBodies = []; // Clear the array
+}
 
 export function resetGame() {
     isResetting = true;
@@ -286,7 +309,7 @@ export function resetGame() {
     const startTarget = new THREE.Vector3();
     camera.getWorldDirection(startTarget).normalize;
     startTarget.add(camera.position);
-
+    
     const endPosition = new THREE.Vector3(15, 15, 15); // Reset position
     const endTarget = new THREE.Vector3(0, blockHeight, 0); // Reset look-at point
 
@@ -381,15 +404,19 @@ export function cleanupGame1() {
 }
 
 function completeReset() {
-    // remove all blocks from scene & physics world
+    // Remove all blocks from the scene
     for (let i = stack.length - 1; i >= 0; i--) {
-        scene.remove(stack[i]);
-        stack.pop();
-      }
+        const block = stack.pop();
+        if (block) {
+            scene.remove(block);
+            if (block.geometry) block.geometry.dispose();
+            if (block.material) block.material.dispose();
+        }
+    }
 
-    // remove all physics bodies and corresponding meshes
+    // Remove all physics bodies and corresponding meshes
     for (let i = physicsBodies.length - 1; i >= 0; i--) {
-        const { mesh, body } = physicsBodies[i];
+        const { mesh, body } = physicsBodies.pop();
         if (mesh) {
             scene.remove(mesh);
             if (mesh.geometry) mesh.geometry.dispose();
@@ -398,9 +425,14 @@ function completeReset() {
         if (body) {
             world.removeBody(body);
         }
-        physicsBodies.pop();
     }
 
+    // Clear any remaining physics bodies directly from the world
+    while (world.bodies.length > 0) {
+        world.removeBody(world.bodies[0]);
+    }
+
+    // Reset game variables
     blockSizeX = 10;
     blockSizeZ = 10;
     currentPosition = 10;
@@ -411,14 +443,15 @@ function completeReset() {
     speed = 0.10;
     document.getElementById('score').innerText = `${score}`;
 
+    // Reset colors for new blocks
     currentColor = new THREE.Color(Math.random(), Math.random(), Math.random());
     targetColor = new THREE.Color(Math.random(), Math.random(), Math.random());
     lerpFactor = 0.1;
 
-    // Clear existing lights
+    // Clear and recreate lighting
     scene.remove(scene.getObjectByName('ambientLight'));
     scene.remove(scene.getObjectByName('directionalLight'));
-    // Make new lights
+
     const ambientLight = new THREE.AmbientLight(0x404040, 1);
     ambientLight.name = 'ambientLight';
     scene.add(ambientLight);
@@ -429,8 +462,9 @@ function completeReset() {
     scene.add(directionalLight);
 
     // Add the base block
-    createBlock(0, 0, 0); 
+    createBlock(0, 0, 0);
 }
+
 
 function createFallingBlock(x, y, z, fallBlockSizeX, fallBlockSizeZ) {
     const geometry = new THREE.BoxGeometry(fallBlockSizeX, blockHeight, fallBlockSizeZ);
