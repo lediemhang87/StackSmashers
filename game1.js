@@ -3,7 +3,7 @@ import { showGameOver } from './index.js';
 import * as CANNON from 'cannon-es';
 
 const world = new CANNON.World();
-world.gravity.set(0, -1, 0); // Gravity pointing down
+world.gravity.set(0, -9.82, 0); // Gravity pointing down
 world.broadphase = new CANNON.NaiveBroadphase();
 world.solver.iterations = 10;
 let physicsBodies = [];
@@ -40,9 +40,9 @@ const minTolerance = 0.04; // 5% minimum tolerance
 const maxTolerance = 0.40; // 20% maximum tolerance
 
 // USE FOR SPEEDUP FUNCTION
-const base = 0.10;
-const step = 0.001;
-const breakpoint = 20;
+const base = 0.15;
+const step = 0.002;
+const breakpoint = 30;
 
 let cameraState = 'gameplay'; // Can be 'gameplay', 'gameover', etc.
 camera.position.set(15, 15, 15);
@@ -62,16 +62,19 @@ scene.add(ambientLight);
 
 const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
 directionalLight.name = 'directionalLight';
-directionalLight.position.set(5, 10, 5);
+directionalLight.position.set(20, 40, 20);
 directionalLight.castShadow = true;
 directionalLight.shadow.mapSize.width = 1024;
 directionalLight.shadow.mapSize.height = 1024;
-directionalLight.shadow.camera.near = 0.5;
-directionalLight.shadow.camera.far = 50;
-directionalLight.shadow.camera.left = -20;
-directionalLight.shadow.camera.right = 20;
-directionalLight.shadow.camera.top = 20;
-directionalLight.shadow.camera.bottom = -20;
+const d = 30;
+directionalLight.shadow.camera.near = 1;
+directionalLight.shadow.camera.far = 100;
+directionalLight.shadow.camera.left = -5*d;
+directionalLight.shadow.camera.right = 5*d;
+directionalLight.shadow.camera.top = 5*d;
+directionalLight.shadow.camera.bottom = -5*d;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
 scene.add(directionalLight);
 
 const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.3);
@@ -235,7 +238,7 @@ function createMovingCloudWithTexture(texturePath, startDirection = "left") {
 
     // Set initial position based on the direction
     const startX = startDirection === "left" ? -50 : 50; // Start off-screen
-    const startY = Math.random() * (20 - 0) + 5 + currentHeight; // max 30 + height, min is height
+    const startY = Math.random() * (10 - 0) + 5 + currentHeight; // max 30 + height, min is height
     const startZ = 10; // Random depth
     cloud.position.set(startX, startY, startZ);
     // Set cloud size
@@ -417,7 +420,7 @@ function completeReset() {
     scene.add(ambientLight);
 
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(5, 10, 5);
+    directionalLight.position.set(20, 40, 20);
     directionalLight.name = 'directionalLight';
     scene.add(directionalLight);
 
@@ -643,6 +646,8 @@ window.addEventListener('keydown', (event) => {
 
                         createFallingBlock(newBlock.position.x, newBlock.position.y, fallingBlockZ, fallBlockSizeX, fallBlockSizeZ);
                     }
+                    newBlock.castShadow = true;
+                    newBlock.receiveShadow = true;
                 }
                 
                 
