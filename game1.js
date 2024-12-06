@@ -703,9 +703,15 @@ window.addEventListener('keydown', (event) => {
             
             // Calculate the final camera position and look-at target
             const towerHeight = currentHeight + blockHeight;
-            const targetCameraPosition = new THREE.Vector3(0, towerHeight / 2, towerHeight * 2);  
-            const targetLookAt = new THREE.Vector3(0, towerHeight / 1.5, 0);  
-
+            let targetCameraPosition ;
+            let targetLookAt;
+            if (towerHeight <=  20){
+                targetCameraPosition = new THREE.Vector3(towerHeight * 4, towerHeight * 1.5, towerHeight * 4);  
+            }else{
+                targetCameraPosition = new THREE.Vector3(towerHeight*15,towerHeight*10,towerHeight*15);
+            }
+            targetLookAt = new THREE.Vector3(0, towerHeight / 2, 0);  
+        
             // Start the camera transition animation
             let transitionStartTime = Date.now();
             const transitionDuration = 1500;
