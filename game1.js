@@ -39,6 +39,11 @@ let score = 0;
 const minTolerance = 0.04; // 5% minimum tolerance
 const maxTolerance = 0.40; // 20% maximum tolerance
 
+// USE FOR SPEEDUP FUNCTION
+const base = 0.10;
+const step = 0.001;
+const breakpoint = 20;
+
 let cameraState = 'gameplay'; // Can be 'gameplay', 'gameover', etc.
 camera.position.set(15, 15, 15);
 camera.lookAt(0, blockHeight, 0);
@@ -69,6 +74,13 @@ directionalLight.shadow.camera.top = 20;
 directionalLight.shadow.camera.bottom = -20;
 scene.add(directionalLight);
 
+const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.3);
+scene.add(hemisphereLight);
+renderer.physicallyCorrectLights = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1;
+directionalLight.castShadow = true;
+directionalLight.shadow.bias = -0.001;
 // Add the base block
 createBlock(0, 0, 0); 
 
@@ -223,7 +235,7 @@ function createMovingCloudWithTexture(texturePath, startDirection = "left") {
 
     // Set initial position based on the direction
     const startX = startDirection === "left" ? -50 : 50; // Start off-screen
-    const startY = Math.random() * (10 - 0) + -10 + currentHeight; // max 30 + height, min is height
+    const startY = Math.random() * (20 - 0) + 5 + currentHeight; // max 30 + height, min is height
     const startZ = 10; // Random depth
     cloud.position.set(startX, startY, startZ);
     // Set cloud size
@@ -531,9 +543,7 @@ function addBlock() {
     document.getElementById('score').innerText = `${score}`;
 }
 function calculateSpeed(currentScore) {
-    const base = 0.10;
-    const step = 0.005;
-    const breakpoint = 40;
+
     if (currentScore <= breakpoint) {
         return base + step * (2 * currentScore - (currentScore ** 2) / breakpoint);
     } else {
