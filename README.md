@@ -8,3 +8,8 @@ This game is inspired by the Stack game by Ketchapp. In the original game, the o
 In this project, we are planning to implement 2 modes. 
 The first mode is going to be the same feature as the original Stack game.
 For the second mode, your task is also building a tower by stacking blocks one on top of the other. But there's a catch: physics plays a big role, and keeping the tower balanced is part of the challenge! As you keep stacking, each block that isn’t perfectly aligned makes the tower more unstable. The higher the tower gets, the more unstable it becomes due to gravity. If the blocks are too uneven, the whole tower may tilt and eventually collapse. This means that stacking with precision is essential for reaching new heights.
+
+
+---
+Run the project:
+npx vite

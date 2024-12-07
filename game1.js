@@ -1,32 +1,25 @@
+
 import * as THREE from 'three';
 import { showGameOver } from './index.js';
 import * as CANNON from 'cannon-es';
-import CannonDebugger from 'cannon-es-debugger';
+// import CannonDebugger from 'cannon-es-debugger';
 
-const world = new CANNON.World();
-world.gravity.set(0, -9.82, 0); // Gravity pointing down
-world.broadphase = new CANNON.NaiveBroadphase();
-world.solver.iterations = 10;
+import scene from './game/settings/scene.js';
+import world from './game/settings/world.js';
+import renderer from './game/settings/renderer.js';
+
+import { initAudio, playPerfectSound, playPlaceSound } from './game/effects/audio.js';
+import { createRippleEffect } from './game/effects/effects.js';
+import { createMovingCloudWithTexture } from './game/objects/cloud.js';
+import { ambientLight, directionalLight, camera, frustumSize} from './game/settings/lights.js';
+import { createVerticalGradientTexture, getRandomColorExcludingNavyBlue, rgbDistance} from './game/effects/backgroundColor.js'
+import { createGround } from './game/objects/ground.js';
+
 let physicsBodies = [];
-const scene = new THREE.Scene();
-//const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const aspect = window.innerWidth / window.innerHeight;
-const frustumSize = 30;
-const camera = new THREE.OrthographicCamera(
-  frustumSize * aspect / -2,
-  frustumSize * aspect / 2,
-  frustumSize / 2,
-  frustumSize / -2,
-  0.1,
-  1000
-);
-
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 document.body.appendChild(renderer.domElement);
+
+initAudio();
 
 let stack = [];
 let blockSizeX = 10;
@@ -58,249 +51,25 @@ const blockResetTimeout = 300;
 let currentColor = getRandomColorExcludingNavyBlue();
 let targetColor = getRandomColorExcludingNavyBlue();
 let lerpFactor = 0.1;
-const ambientLight = new THREE.AmbientLight(0x404040, 1);
-ambientLight.name = 'ambientLight';
-scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-directionalLight.name = 'directionalLight';
-directionalLight.position.set(20, 40, 20);
-directionalLight.castShadow = true;
-directionalLight.shadow.mapSize.width = 1024;
-directionalLight.shadow.mapSize.height = 1024;
-const d = 30;
-directionalLight.shadow.camera.near = 1;
-directionalLight.shadow.camera.far = 100;
-directionalLight.shadow.camera.left = -5*d;
-directionalLight.shadow.camera.right = 5*d;
-directionalLight.shadow.camera.top = 5*d;
-directionalLight.shadow.camera.bottom = -5*d;
-directionalLight.shadow.mapSize.width = 2048;
-directionalLight.shadow.mapSize.height = 2048;
-directionalLight.shadow.radius = 4;
+scene.add(ambientLight);
 scene.add(directionalLight);
 
-const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.3);
-scene.add(hemisphereLight);
-renderer.physicallyCorrectLights = true;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1;
-directionalLight.castShadow = true;
-directionalLight.shadow.normalBias = 0.02;
-directionalLight.shadow.bias = -0.001;
 // Add the base block
 createBlock(0, 0, 0); 
 
-let audioContext;
-let placeSound;
-export function initAudio() {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    fetch('assets/plomp.mp3')
-    .then(response => response.arrayBuffer())
-    .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
-    .then(audioBuffer => {
-        placeSound = audioBuffer;
-    });
-    
-    fetch('assets/wood-place.mp3') // zap-woosh vs. zap-crash vs click (wavs) VS wood-place.mp3
-    .then(response => response.arrayBuffer())
-    .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
-    .then(audioBuffer => {
-        perfectSound = audioBuffer;
-    });
-}
-let perfectSound;
-function playPlaceSound() {
-    if (placeSound && audioContext) {
-        const source = audioContext.createBufferSource();
-        const gainNode = audioContext.createGain();
-        
-        source.buffer = placeSound;
-        gainNode.gain.value = 0.1; // Adjust this value to control volume (0 to 1)
-        
-        source.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        source.start();
-      }
-  }
-function playPerfectSound() {
-    if (perfectSound && audioContext) {
-        const source = audioContext.createBufferSource();
-        const gainNode = audioContext.createGain();
-        source.buffer = perfectSound;
-        source.playbackRate.value = 2;
-        gainNode.gain.value = 0.7; // Adjust this value to control volume (0 to 1)
-        source.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        source.start();
-    }
-}
-
 //background setup
-function createVerticalGradientTexture(baseColor, upperColor) {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    // Create gradient from base color to grey
-    const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
-    gradient.addColorStop(0, upperColor); // Bottom color (current block color)
-    gradient.addColorStop(1,  baseColor.getStyle()); // Top color (grey)
-
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Create a texture from the canvas
-    const texture = new THREE.CanvasTexture(canvas);
-    return texture;
-}
-function getRandomColorExcludingNavyBlue() {
-    let color;
-    do {
-        // Generate a random color
-        color = new THREE.Color(Math.random(), Math.random(), Math.random());
-    } while (isCloseToNavyBlue(color));  // Keep trying until it's not navy blue
-    return color;
-}
-function isCloseToNavyBlue(color) {
-    // Navy blue is approximately rgb(0, 0, 128) or #000080
-    const navyBlue = new THREE.Color(0, 0, 128);
-    return rgbDistance(color, navyBlue) < 0.1; // Threshold for "closeness"
-}
-
-
-function createGround() {
-
-    // Create PlaneGeometry with subdivisions for vertex manipulation
-
-    const groundWidth = 50;
-    const groundHeight = 50;
-    const widthSegments = 500; // Increase for more detailed bumps
-    const heightSegments = 500;
-    const groundGeometry = new THREE.PlaneGeometry(groundWidth, groundHeight, widthSegments, heightSegments);
-
-    // Manipulate vertices to create bumps
-    const positionAttribute = groundGeometry.attributes.position;
-
-    for (let i = 0; i < positionAttribute.count; i++) {
-        const x = positionAttribute.getX(i);
-        const y = positionAttribute.getY(i);
-        const z = (Math.random() * 2 - 1)/3;
-        positionAttribute.setZ(i, z);
-
-    }
-
-    groundGeometry.computeVertexNormals(); // Recalculate normals for proper shading
-
-    // Create a material for the ground
-    const groundMaterial = new THREE.MeshStandardMaterial({
-        color: 0x557d5c, // A greenish color
-        roughness: 1,
-        metalness: 0,
-    });
-
-    // Create a mesh for the ground
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2; // Rotate to make it horizontal
-    ground.receiveShadow = true; // Enable shadow receiving
-    scene.add(ground);
-
-    // Create the physics representation as a flat plane
-    const groundShape = new CANNON.Plane();
-    const groundBody = new CANNON.Body({
-        mass: 0, // Static body
-        shape: groundShape,
-    });
-
-    groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0); // Rotate to match Three.js
-    world.addBody(groundBody);
-}
-
 createGround();
 
-function createMovingCloudWithTexture(texturePath, startDirection = "left") {
-
-    // Load the cloud texture
-
-    const textureLoader = new THREE.TextureLoader();
-    const cloudTexture = textureLoader.load(texturePath, (texture) => {
-        // Adjust scale based on the texture's aspect ratio
-        const aspect = texture.image.width / texture.image.height;
-        cloud.scale.set(cloudSize * aspect, cloudSize, 1); // Scale width by aspect ratio
-    });
-
-
-    // Create a sprite for the cloud
-
-    const cloudMaterial = new THREE.SpriteMaterial({
-        map: cloudTexture,
-        transparent: true,
-        opacity: 0.8, // Slight transparency for a soft look
-    });
-    const cloud = new THREE.Sprite(cloudMaterial);
-
-    // Set initial position based on the direction
-    const startX = startDirection === "left" ? -50 : 50; // Start off-screen
-    const startY = Math.random() * (10 - 0) + 5 + currentHeight; // max 30 + height, min is height
-    const startZ = 10; // Random depth
-    cloud.position.set(startX, startY, startZ);
-    // Set cloud size
-
-    const cloudSize = Math.random() * 10 + 10; // Random size
-
-    cloud.scale.set(cloudSize, cloudSize, 1);
-    // Add the cloud to the scene
-    scene.add(cloud);
-    // Set cloud speed
-    const cloudSpeed = Math.random() * speed + 0.05; // Random speed (0.05 to avoid freezing)
-
-    // Animate the cloud
-    function animateCloud() {
-        cloud.position.x += startDirection === "left" ? cloudSpeed : -cloudSpeed;
-        cloud.position.z -= cloudSpeed;
-        // Remove the cloud when it moves out of view
-        if (cloud.position.x > 50 || cloud.position.x < -50 || cloud.position.y < -10) {
-            scene.remove(cloud);
-        } else {
-            requestAnimationFrame(animateCloud);
-        }
-    }
-    animateCloud();
-
-}
 
 setInterval(() => {
-    createMovingCloudWithTexture('assets/cloud.png', "left");
+    createMovingCloudWithTexture('assets/cloud.png', "left", currentHeight);
 }, 11000);
 
 setInterval(() => {
-    createMovingCloudWithTexture('assets/cloud2.png', "left"); // Replace with your PNG path
+    createMovingCloudWithTexture('assets/cloud2.png', "left", currentHeight); 
 }, 7000);
 
-function clearPhysicsBodies() {
-    while (world.bodies.length > 0) {
-        world.removeBody(world.bodies[0]); // Remove all bodies from the physics world
-    }
-    physicsBodies = []; // Clear the array tracking the bodies
-}
-
-function disposePhysicsObjects() {
-    physicsBodies.forEach(({ mesh, body }) => {
-        // Remove mesh from scene
-        if (mesh) {
-            scene.remove(mesh);
-            if (mesh.geometry) mesh.geometry.dispose();
-            if (mesh.material) mesh.material.dispose();
-        }
-
-        // Remove body from world
-        if (body) {
-            world.removeBody(body);
-        }
-    });
-    physicsBodies = []; // Clear the array
-}
 
 export function resetGame() {
     isResetting = true;
@@ -309,7 +78,7 @@ export function resetGame() {
     const startTarget = new THREE.Vector3();
     camera.getWorldDirection(startTarget).normalize;
     startTarget.add(camera.position);
-    
+
     const endPosition = new THREE.Vector3(15, 15, 15); // Reset position
     const endTarget = new THREE.Vector3(0, blockHeight, 0); // Reset look-at point
 
@@ -404,19 +173,15 @@ export function cleanupGame1() {
 }
 
 function completeReset() {
-    // Remove all blocks from the scene
+    // remove all blocks from scene & physics world
     for (let i = stack.length - 1; i >= 0; i--) {
-        const block = stack.pop();
-        if (block) {
-            scene.remove(block);
-            if (block.geometry) block.geometry.dispose();
-            if (block.material) block.material.dispose();
-        }
-    }
+        scene.remove(stack[i]);
+        stack.pop();
+      }
 
-    // Remove all physics bodies and corresponding meshes
+    // remove all physics bodies and corresponding meshes
     for (let i = physicsBodies.length - 1; i >= 0; i--) {
-        const { mesh, body } = physicsBodies.pop();
+        const { mesh, body } = physicsBodies[i];
         if (mesh) {
             scene.remove(mesh);
             if (mesh.geometry) mesh.geometry.dispose();
@@ -425,14 +190,9 @@ function completeReset() {
         if (body) {
             world.removeBody(body);
         }
+        physicsBodies.pop();
     }
 
-    // Clear any remaining physics bodies directly from the world
-    while (world.bodies.length > 0) {
-        world.removeBody(world.bodies[0]);
-    }
-
-    // Reset game variables
     blockSizeX = 10;
     blockSizeZ = 10;
     currentPosition = 10;
@@ -443,15 +203,14 @@ function completeReset() {
     speed = 0.10;
     document.getElementById('score').innerText = `${score}`;
 
-    // Reset colors for new blocks
     currentColor = new THREE.Color(Math.random(), Math.random(), Math.random());
     targetColor = new THREE.Color(Math.random(), Math.random(), Math.random());
     lerpFactor = 0.1;
 
-    // Clear and recreate lighting
+    // Clear existing lights
     scene.remove(scene.getObjectByName('ambientLight'));
     scene.remove(scene.getObjectByName('directionalLight'));
-
+    // Make new lights
     const ambientLight = new THREE.AmbientLight(0x404040, 1);
     ambientLight.name = 'ambientLight';
     scene.add(ambientLight);
@@ -462,9 +221,8 @@ function completeReset() {
     scene.add(directionalLight);
 
     // Add the base block
-    createBlock(0, 0, 0);
+    createBlock(0, 0, 0); 
 }
-
 
 function createFallingBlock(x, y, z, fallBlockSizeX, fallBlockSizeZ) {
     const geometry = new THREE.BoxGeometry(fallBlockSizeX, blockHeight, fallBlockSizeZ);
@@ -495,7 +253,6 @@ function createFallingBlock(x, y, z, fallBlockSizeX, fallBlockSizeZ) {
 }
 
 
-
 function createBlock(x, y, z) {
     const geometry = new THREE.BoxGeometry(blockSizeX, blockHeight, blockSizeZ);
     // Interpolate current color toward the target color using lerp
@@ -507,8 +264,7 @@ function createBlock(x, y, z) {
     let material = new THREE.MeshPhongMaterial({
         color: currentColor, // Directly use currentColor
         specular: 0x555555,
-        shininess: 40,
-        roughness: 0.7
+        shininess: 40
     });
 
     const block = new THREE.Mesh(geometry, material);
@@ -544,13 +300,6 @@ function createBlock(x, y, z) {
 
     world.addBody(body);
     physicsBodies.push(body);
-}
-
-function rgbDistance(color1, color2) {
-    const rDiff = color1.r - color2.r;
-    const gDiff = color1.g - color2.g;
-    const bDiff = color1.b - color2.b;
-    return Math.sqrt(rDiff * rDiff + gDiff * gDiff + bDiff * bDiff);
 }
 
 
@@ -747,59 +496,6 @@ function calculateTolerance(currentSize, originalSize) {
     return Math.min(maxTolerance, Math.max(minTolerance, tolerance));
 }
 
-function createRippleEffect(x, z, currentHeight, blockSizeX, blockSizeZ) {
-    const edgeThickness = 0.1;
-    const rippleDuration = 500; // milliseconds
-    const maxRippleSize = 0.4; // Maximum expansion size
-  
-    const rippleMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.4,
-      side: THREE.DoubleSide,
-    });
-  
-    // Create outer square
-    const outerGeometry = new THREE.BoxGeometry(blockSizeX + edgeThickness * 2, edgeThickness, blockSizeZ + edgeThickness * 2);
-    const outerEdge = new THREE.Mesh(outerGeometry, rippleMaterial.clone());
-    outerEdge.position.set(x, currentHeight + edgeThickness / 2, z);
-    scene.add(outerEdge);
-  
-    // Create inner square
-    const innerGeometry = new THREE.BoxGeometry(blockSizeX - edgeThickness * 2, edgeThickness, blockSizeZ - edgeThickness * 2);
-    const innerEdge = new THREE.Mesh(innerGeometry, rippleMaterial.clone());
-    innerEdge.position.set(x, currentHeight + edgeThickness / 2, z);
-    scene.add(innerEdge);
-  
-    const startTime = Date.now();
-  
-    function animateRipple() {
-      const elapsedTime = Date.now() - startTime;
-      const progress = Math.min(elapsedTime / rippleDuration, 1);
-      const size = 1 + progress * maxRippleSize;
-  
-      // Scale and fade outer square
-      outerEdge.scale.set(size, 1, size);
-      outerEdge.material.opacity = 0.8 * (1 - progress);
-  
-      // Scale and fade inner square
-      innerEdge.scale.set(size, 1, size);
-      innerEdge.material.opacity = 0.8 * (1 - progress);
-  
-      if (progress < 1) {
-        requestAnimationFrame(animateRipple);
-      } else {
-        scene.remove(outerEdge);
-        scene.remove(innerEdge);
-        outerEdge.geometry.dispose();
-        outerEdge.material.dispose();
-        innerEdge.geometry.dispose();
-        innerEdge.material.dispose();
-      }
-    }
-  
-    animateRipple();
-  }
 
 let cameraAngle = Math.PI / 4; // Initial angle (45 degrees)
 const cameraRadius = 20; // Fixed radius for the circular path
@@ -828,7 +524,7 @@ function animateCamera() {
     }
     requestAnimationFrame(animateCamera);
 }
-const cannonDebugger = new CannonDebugger(scene, world);
+// const cannonDebugger = new CannonDebugger(scene, world);
 animateCamera();
 animate();
 
@@ -844,7 +540,7 @@ function animate() {
             item.mesh.quaternion.copy(item.body.quaternion);
         }
     });
-    cannonDebugger.update();
+    // cannonDebugger.update();
     update();
     renderer.render(scene, camera);
 }
